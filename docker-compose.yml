@@ -32,6 +32,7 @@ services:
       PGUSER: ${POSTGRES_USER:-appelli}
       PGPASSWORD: ${POSTGRES_PASSWORD:-appelli}
       PGDATABASE: ${POSTGRES_DB:-appelli}
+      JWT_SECRET: ${JWT_SECRET:-change-me-please}
     ports:
       - '${API_PORT:-3000}:3000'
 

@@ -11,7 +11,7 @@ COPY apps/api/package.json apps/api/package.json
 COPY apps/interface/package.json apps/interface/package.json
 COPY apps/api-e2e/package.json apps/api-e2e/package.json
 COPY apps/interface-e2e/package.json apps/interface-e2e/package.json
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 FROM deps AS build
 COPY . .
@@ -23,7 +23,7 @@ RUN npm install -g npm@11
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /workspace/apps/api/dist ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 
 EXPOSE 3000
 CMD ["node", "main.js"]
