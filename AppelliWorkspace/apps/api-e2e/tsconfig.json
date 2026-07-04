@@ -1,5 +1,5 @@
 {
-  "extends": "../tsconfig.base.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "out-tsc/@appelli-workspace/api-e2e",
     "esModuleInterop": true,
