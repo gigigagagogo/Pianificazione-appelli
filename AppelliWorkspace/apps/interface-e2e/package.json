@@ -1,0 +1,10 @@
+{
+  "name": "@appelli-workspace/interface-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "implicitDependencies": [
+      "@appelli-workspace/interface"
+    ]
+  }
+}
