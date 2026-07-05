@@ -1,0 +1,108 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, Repository } from 'typeorm';
+import { enumerateDates, isWeekend } from '../common/date.util';
+import { CourseYear } from '../courses/course-year.entity';
+import { ExamSession } from './exam-session.entity';
+import { CreateExamSessionDto } from './dto/create-exam-session.dto';
+import { UpdateExamSessionDto } from './dto/update-exam-session.dto';
+
+@Injectable()
+export class SessionsService {
+  constructor(
+    @InjectRepository(ExamSession)
+    private readonly sessionsRepo: Repository<ExamSession>,
+    @InjectRepository(CourseYear)
+    private readonly yearsRepo: Repository<CourseYear>,
+  ) {}
+
+  findAll() {
+    return this.sessionsRepo.find({
+      relations: ['courseYears', 'courseYears.course'],
+      order: { sessionStartDate: 'DESC' },
+    });
+  }
+
+  async findOneOrFail(id: number): Promise<ExamSession> {
+    const session = await this.sessionsRepo.findOne({
+      where: { id },
+      relations: ['courseYears', 'courseYears.course'],
+    });
+    if (!session) {
+      throw new NotFoundException('Exam session not found');
+    }
+    return session;
+  }
+
+  async create(dto: CreateExamSessionDto) {
+    const courseYears = await this.yearsRepo.find({
+      where: { id: In(dto.courseYearIds) },
+    });
+    const session = this.sessionsRepo.create({
+      name: dto.name,
+      sessionStartDate: dto.sessionStartDate,
+      sessionEndDate: dto.sessionEndDate,
+      submissionStartDate: new Date(dto.submissionStartDate),
+      submissionEndDate: new Date(dto.submissionEndDate),
+      courseYears,
+    });
+    return this.sessionsRepo.save(session);
+  }
+
+  async update(id: number, dto: UpdateExamSessionDto) {
+    const session = await this.findOneOrFail(id);
+    if (dto.name !== undefined) session.name = dto.name;
+    if (dto.sessionStartDate !== undefined) session.sessionStartDate = dto.sessionStartDate;
+    if (dto.sessionEndDate !== undefined) session.sessionEndDate = dto.sessionEndDate;
+    if (dto.submissionStartDate !== undefined)
+      session.submissionStartDate = new Date(dto.submissionStartDate);
+    if (dto.submissionEndDate !== undefined)
+      session.submissionEndDate = new Date(dto.submissionEndDate);
+    if (dto.courseYearIds !== undefined) {
+      session.courseYears = await this.yearsRepo.find({
+        where: { id: In(dto.courseYearIds) },
+      });
+    }
+    return this.sessionsRepo.save(session);
+  }
+
+  remove(id: number) {
+    return this.sessionsRepo.delete(id);
+  }
+
+  async calendar(sessionId: number, courseYearId: number) {
+    const session = await this.sessionsRepo.findOne({
+      where: { id: sessionId },
+      relations: ['courseYears'],
+    });
+    if (!session) {
+      throw new NotFoundException('Exam session not found');
+    }
+    const isEnabled = session.courseYears?.some((y) => y.id === courseYearId);
+    if (!isEnabled) {
+      throw new NotFoundException(
+        'The selected course/year is not enabled for this session',
+      );
+    }
+
+    const allDates = enumerateDates(session.sessionStartDate, session.sessionEndDate);
+    const now = new Date();
+    const submissionWindowOpen =
+      now >= session.submissionStartDate && now <= session.submissionEndDate;
+
+    const days = allDates
+      .filter((date) => !isWeekend(date))
+      .map((date) => ({ date, available: true })); // booking check added when Bookings module exists
+
+    return {
+      session: {
+        id: session.id,
+        name: session.name,
+        sessionStartDate: session.sessionStartDate,
+        sessionEndDate: session.sessionEndDate,
+        submissionWindowOpen,
+      },
+      days,
+    };
+  }
+}
