@@ -9,8 +9,8 @@ describe('App', () => {
     expect(baseElement).toBeTruthy();
   });
 
-  it('should have a greeting as the title', () => {
+  it('should show the login page at the root route', () => {
     const { getAllByText } = render(<BrowserRouter><App /></BrowserRouter>);
-    expect(getAllByText(new RegExp('Welcome @appelli-workspace/interface', 'gi')).length > 0).toBeTruthy();
+    expect(getAllByText(new RegExp('Accedi', 'gi')).length > 0).toBeTruthy();
   });
 });
