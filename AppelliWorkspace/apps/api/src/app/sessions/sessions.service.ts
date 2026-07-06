@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { enumerateDates, isWeekend } from '../common/date.util';
@@ -6,6 +6,7 @@ import { CourseYear } from '../courses/course-year.entity';
 import { ExamSession } from './exam-session.entity';
 import { CreateExamSessionDto } from './dto/create-exam-session.dto';
 import { UpdateExamSessionDto } from './dto/update-exam-session.dto';
+import { HolidaysService } from '../holidays/holidays.service';
 
 @Injectable()
 export class SessionsService {
@@ -14,6 +15,7 @@ export class SessionsService {
     private readonly sessionsRepo: Repository<ExamSession>,
     @InjectRepository(CourseYear)
     private readonly yearsRepo: Repository<CourseYear>,
+    private readonly holidaysService: HolidaysService,
   ) {}
 
   findAll() {
@@ -35,19 +37,31 @@ export class SessionsService {
   }
 
   async create(dto: CreateExamSessionDto) {
+    this.validateDateRanges(
+      dto.sessionStartDate,
+      dto.sessionEndDate,
+      new Date(dto.submissionStartDate),
+      new Date(dto.submissionEndDate)
+    );
+
     const courseYears = await this.yearsRepo.find({
       where: { id: In(dto.courseYearIds) },
     });
+    if (courseYears.length !== dto.courseYearIds.length) {
+      throw new BadRequestException(
+        'One or more of the provided courseYearIds do not exist',
+      );
+    }
     const session = this.sessionsRepo.create({
-      name: dto.name,
-      sessionStartDate: dto.sessionStartDate,
-      sessionEndDate: dto.sessionEndDate,
-      submissionStartDate: new Date(dto.submissionStartDate),
-      submissionEndDate: new Date(dto.submissionEndDate),
-      courseYears,
-    });
-    return this.sessionsRepo.save(session);
-  }
+        name: dto.name,
+        sessionStartDate: dto.sessionStartDate,
+        sessionEndDate: dto.sessionEndDate,
+        submissionStartDate: new Date(dto.submissionStartDate),
+        submissionEndDate: new Date(dto.submissionEndDate),
+        courseYears,
+      });
+      return this.sessionsRepo.save(session);
+    }
 
   async update(id: number, dto: UpdateExamSessionDto) {
     const session = await this.findOneOrFail(id);
@@ -58,16 +72,48 @@ export class SessionsService {
       session.submissionStartDate = new Date(dto.submissionStartDate);
     if (dto.submissionEndDate !== undefined)
       session.submissionEndDate = new Date(dto.submissionEndDate);
+    
+    this.validateDateRanges(
+      session.sessionStartDate,
+      session.sessionEndDate,
+      session.submissionStartDate,
+      session.submissionEndDate,
+    );
+
     if (dto.courseYearIds !== undefined) {
-      session.courseYears = await this.yearsRepo.find({
-        where: { id: In(dto.courseYearIds) },
-      });
+    const courseYears = await this.yearsRepo.find({
+      where: { id: In(dto.courseYearIds) },
+    });
+    if (courseYears.length !== dto.courseYearIds.length) {
+      throw new BadRequestException(
+        'One or more of the provided courseYearIds do not exist',
+      );
     }
+    session.courseYears = courseYears;
+  }
     return this.sessionsRepo.save(session);
   }
 
   remove(id: number) {
     return this.sessionsRepo.delete(id);
+  }
+
+  private validateDateRanges(
+    sessionStartDate: string,
+    sessionEndDate: string,
+    submissionStartDate: Date,
+    submissionEndDate: Date,
+  ) {
+    if (sessionStartDate > sessionEndDate) {
+      throw new BadRequestException(
+        'sessionStartDate must be before sessionEndDate',
+      );
+    }
+    if (submissionStartDate > submissionEndDate) {
+      throw new BadRequestException(
+        'submissionStartDate must be before submissionEndDate',
+      );
+    }
   }
 
   async calendar(sessionId: number, courseYearId: number) {
@@ -90,10 +136,11 @@ export class SessionsService {
     const submissionWindowOpen =
       now >= session.submissionStartDate && now <= session.submissionEndDate;
 
-    const days = allDates
-      .filter((date) => !isWeekend(date))
-      .map((date) => ({ date, available: true })); // booking check added when Bookings module exists
+    const holidays = await this.holidaysService.getDateSet();
 
+    const days = allDates
+      .filter((date) => !isWeekend(date) && !holidays.has(date))
+      .map((date) => ({ date, available: true })); 
     return {
       session: {
         id: session.id,

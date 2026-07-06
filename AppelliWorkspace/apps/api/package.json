@@ -79,6 +79,12 @@
         "options": {
           "passWithNoTests": true
         }
+      },
+      "seed-holidays": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "ts-node -P apps/api/tsconfig.app.json -r tsconfig-paths/register apps/api/src/seed-holidays.ts"
+        }
       }
     }
   },
