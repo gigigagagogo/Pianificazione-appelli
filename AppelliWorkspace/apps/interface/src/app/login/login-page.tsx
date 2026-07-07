@@ -1,29 +1,27 @@
 import { useState, SubmitEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../shared/auth-layout';
 import { inputClass, labelClass } from '../shared/form-styles';
 import { ApiError, loginUser } from '../shared/api';
 import { EyeIcon, EyeOffIcon } from '../shared/icons';
 
 const LoginPage = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
-    setSuccess(false);
 
     setSubmitting(true);
     try {
       const { token } = await loginUser({ email, password });
       localStorage.setItem('token', token);
-      setSuccess(true);
-      // TODO: quando esisterà una dashboard, redirect con navigate('/dashboard')
+      navigate('/appelli');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
     } finally {
@@ -46,11 +44,6 @@ const LoginPage = () => {
 
         {error && (
           <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
-        )}
-        {success && (
-          <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
-            Accesso effettuato.
-          </p>
         )}
 
         <div className="flex flex-col gap-1">

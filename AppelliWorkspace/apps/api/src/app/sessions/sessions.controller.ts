@@ -8,9 +8,12 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtPayload } from '../auth/jwt.strategy';
 import { CreateExamSessionDto } from './dto/create-exam-session.dto';
 import { UpdateExamSessionDto } from './dto/update-exam-session.dto';
 import { SessionsService } from './sessions.service';
@@ -34,8 +37,10 @@ export class SessionsController {
   calendar(
     @Param('id', ParseIntPipe) id: number,
     @Query('courseYearId', ParseIntPipe) courseYearId: number,
+    @Req() req: Request,
   ) {
-    return this.sessionsService.calendar(id, courseYearId);
+    const docente = req.user as JwtPayload;
+    return this.sessionsService.calendar(id, courseYearId, docente.sub);
   }
 
   @Post()

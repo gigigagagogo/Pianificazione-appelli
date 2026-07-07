@@ -8,6 +8,7 @@ import { RegisterModule } from './register/register.module';
 import { LoginModule } from './login/login.module';
 import { CoursesModule } from './courses/courses.module';
 import { SessionsModule } from './sessions/sessions.module';
+import { AppelliModule } from './appelli/appelli.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { SessionsModule } from './sessions/sessions.module';
     LoginModule,
     CoursesModule,
     SessionsModule,
+    AppelliModule,
   ],
   controllers: [AppController],
   providers: [AppService],

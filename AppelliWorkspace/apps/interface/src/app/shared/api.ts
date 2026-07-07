@@ -6,22 +6,35 @@ export class ApiError extends Error {
   }
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
+async function request<T>(
+  path: string,
+  options: { method?: string; body?: unknown } = {},
+): Promise<T> {
+  const token = localStorage.getItem('token');
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    method: options.method ?? 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
   });
 
-  const data = await response.json();
+  const rawBody = await response.text();
+  const data = rawBody ? JSON.parse(rawBody) : undefined;
 
   if (!response.ok) {
-    const message = Array.isArray(data.message) ? data.message.join(', ') : data.message;
+    const message = Array.isArray(data?.message) ? data.message.join(', ') : data?.message;
     throw new ApiError(message ?? 'Errore imprevisto', response.status);
   }
 
   return data as T;
 }
+
+const get = <T>(path: string) => request<T>(path);
+const post = <T>(path: string, body: unknown) => request<T>(path, { method: 'POST', body });
+const patch = <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH', body });
+const del = <T>(path: string) => request<T>(path, { method: 'DELETE' });
 
 export type Role = 'docente' | 'segreteria';
 
@@ -57,4 +70,102 @@ export function registerUser(payload: RegisterPayload) {
 
 export function loginUser(payload: LoginPayload) {
   return post<LoginResult>('/login', payload);
+}
+
+export interface Course {
+  id: number;
+  code: string;
+  name: string;
+  years?: CourseYear[];
+}
+
+export interface CourseYear {
+  id: number;
+  courseId: number;
+  yearNumber: number;
+  label: string;
+  course?: Course;
+}
+
+export interface ExamSession {
+  id: number;
+  name: string;
+  sessionStartDate: string;
+  sessionEndDate: string;
+  courseYears?: CourseYear[];
+}
+
+export interface Appello {
+  id: number;
+  date: string;
+  courseYearId: number;
+  courseYear: CourseYear;
+  examSession: ExamSession;
+  createdAt: string;
+  docente?: { id: string; name: string; surname: string };
+}
+
+export function getMyAppelli() {
+  return get<Appello[]>('/appelli/mine');
+}
+
+export function getAllAppelli() {
+  return get<Appello[]>('/appelli');
+}
+
+export interface CreateAppelloPayload {
+  date: string;
+  courseYearId: number;
+  examSessionId: number;
+}
+
+export function createAppello(payload: CreateAppelloPayload) {
+  return post<Appello>('/appelli', payload);
+}
+
+export function deleteAppello(id: number) {
+  return del<void>(`/appelli/${id}`);
+}
+
+export interface UpdateAppelloPayload {
+  date: string;
+  courseYearId: number;
+  examSessionId: number;
+}
+
+export function updateAppello(id: number, payload: UpdateAppelloPayload) {
+  return patch<Appello>(`/appelli/${id}`, payload);
+}
+
+export function getCourses() {
+  return get<Course[]>('/courses');
+}
+
+export function getSessions() {
+  return get<ExamSession[]>('/sessions');
+}
+
+export interface CalendarDay {
+  date: string;
+  available: boolean;
+  appelloId?: number;
+  mine?: boolean;
+  docente?: string;
+}
+
+export interface CalendarResponse {
+  session: {
+    id: number;
+    name: string;
+    sessionStartDate: string;
+    sessionEndDate: string;
+    submissionWindowOpen: boolean;
+  };
+  days: CalendarDay[];
+}
+
+export function getCalendar(sessionId: number, courseYearId: number) {
+  return get<CalendarResponse>(
+    `/sessions/${sessionId}/calendar?courseYearId=${courseYearId}`,
+  );
 }

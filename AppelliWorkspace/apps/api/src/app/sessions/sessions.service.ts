@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { enumerateDates, isWeekend } from '../common/date.util';
 import { CourseYear } from '../courses/course-year.entity';
+import { Appelli } from '../appelli/appelli.entity';
 import { ExamSession } from './exam-session.entity';
 import { CreateExamSessionDto } from './dto/create-exam-session.dto';
 import { UpdateExamSessionDto } from './dto/update-exam-session.dto';
@@ -14,6 +15,8 @@ export class SessionsService {
     private readonly sessionsRepo: Repository<ExamSession>,
     @InjectRepository(CourseYear)
     private readonly yearsRepo: Repository<CourseYear>,
+    @InjectRepository(Appelli)
+    private readonly appelliRepo: Repository<Appelli>,
   ) {}
 
   findAll() {
@@ -70,7 +73,7 @@ export class SessionsService {
     return this.sessionsRepo.delete(id);
   }
 
-  async calendar(sessionId: number, courseYearId: number) {
+  async calendar(sessionId: number, courseYearId: number, docenteId: string) {
     const session = await this.sessionsRepo.findOne({
       where: { id: sessionId },
       relations: ['courseYears'],
@@ -85,6 +88,15 @@ export class SessionsService {
       );
     }
 
+    // Il vincolo di unicità è su (courseYear, date) a prescindere dalla sessione,
+    // quindi il calendario deve considerare le prenotazioni di questo corso/anno
+    // in qualunque sessione, non solo in quella che si sta visualizzando.
+    const bookings = await this.appelliRepo.find({
+      where: { courseYearId },
+      relations: ['docente'],
+    });
+    const bookingByDate = new Map(bookings.map((booking) => [booking.date, booking]));
+
     const allDates = enumerateDates(session.sessionStartDate, session.sessionEndDate);
     const now = new Date();
     const submissionWindowOpen =
@@ -92,7 +104,19 @@ export class SessionsService {
 
     const days = allDates
       .filter((date) => !isWeekend(date))
-      .map((date) => ({ date, available: true })); // booking check added when Bookings module exists
+      .map((date) => {
+        const booking = bookingByDate.get(date);
+        if (!booking) {
+          return { date, available: true };
+        }
+        return {
+          date,
+          available: false,
+          appelloId: booking.id,
+          mine: booking.docenteId === docenteId,
+          docente: `${booking.docente.name} ${booking.docente.surname}`,
+        };
+      });
 
     return {
       session: {
