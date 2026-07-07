@@ -3,9 +3,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { CreateCourseYearDto } from './dto/create-course-year.dto';
+import { RolesGuard } from '../auth/roles.guard';
+import { UserRole } from '../users/user-role.enum';
+import { Roles } from '../auth/roles.decorator';
 
 @Controller('courses')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
@@ -15,6 +18,7 @@ export class CoursesController {
   }
 
   @Post()
+  @Roles(UserRole.SEGRETERIA)
   createCourse(@Body() dto: CreateCourseDto) {
     return this.coursesService.createCourse(dto);
   }
@@ -25,6 +29,7 @@ export class CoursesController {
   }
 
   @Post('years')
+  @Roles(UserRole.SEGRETERIA)
   createYear(@Body() dto: CreateCourseYearDto) {
     return this.coursesService.createYear(dto);
   }

@@ -17,9 +17,12 @@ import { JwtPayload } from '../auth/jwt.strategy';
 import { CreateExamSessionDto } from './dto/create-exam-session.dto';
 import { UpdateExamSessionDto } from './dto/update-exam-session.dto';
 import { SessionsService } from './sessions.service';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
+import { UserRole } from '../users/user-role.enum';
 
 @Controller('sessions')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
 
@@ -44,16 +47,19 @@ export class SessionsController {
   }
 
   @Post()
+  @Roles(UserRole.SEGRETERIA)
   create(@Body() dto: CreateExamSessionDto) {
     return this.sessionsService.create(dto);
   }
 
   @Patch(':id')
+  @Roles(UserRole.SEGRETERIA)
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateExamSessionDto) {
     return this.sessionsService.update(id, dto);
   }
 
   @Delete(':id')
+  @Roles(UserRole.SEGRETERIA)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.sessionsService.remove(id);
   }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { enumerateDates, isWeekend } from '../common/date.util';
@@ -7,6 +7,7 @@ import { Appelli } from '../appelli/appelli.entity';
 import { ExamSession } from './exam-session.entity';
 import { CreateExamSessionDto } from './dto/create-exam-session.dto';
 import { UpdateExamSessionDto } from './dto/update-exam-session.dto';
+import { HolidaysService } from '../holidays/holidays.service';
 
 @Injectable()
 export class SessionsService {
@@ -17,6 +18,7 @@ export class SessionsService {
     private readonly yearsRepo: Repository<CourseYear>,
     @InjectRepository(Appelli)
     private readonly appelliRepo: Repository<Appelli>,
+    private readonly holidaysService: HolidaysService,
   ) {}
 
   findAll() {
@@ -38,9 +40,21 @@ export class SessionsService {
   }
 
   async create(dto: CreateExamSessionDto) {
+    this.validateDateRanges(
+      dto.sessionStartDate,
+      dto.sessionEndDate,
+      new Date(dto.submissionStartDate),
+      new Date(dto.submissionEndDate)
+    );
+
     const courseYears = await this.yearsRepo.find({
       where: { id: In(dto.courseYearIds) },
     });
+    if (courseYears.length !== dto.courseYearIds.length) {
+      throw new BadRequestException(
+        'One or more of the provided courseYearIds do not exist',
+      );
+    }
     const session = this.sessionsRepo.create({
       name: dto.name,
       sessionStartDate: dto.sessionStartDate,
@@ -61,16 +75,48 @@ export class SessionsService {
       session.submissionStartDate = new Date(dto.submissionStartDate);
     if (dto.submissionEndDate !== undefined)
       session.submissionEndDate = new Date(dto.submissionEndDate);
+
+    this.validateDateRanges(
+      session.sessionStartDate,
+      session.sessionEndDate,
+      session.submissionStartDate,
+      session.submissionEndDate,
+    );
+
     if (dto.courseYearIds !== undefined) {
-      session.courseYears = await this.yearsRepo.find({
+      const courseYears = await this.yearsRepo.find({
         where: { id: In(dto.courseYearIds) },
       });
+      if (courseYears.length !== dto.courseYearIds.length) {
+        throw new BadRequestException(
+          'One or more of the provided courseYearIds do not exist',
+        );
+      }
+      session.courseYears = courseYears;
     }
     return this.sessionsRepo.save(session);
   }
 
   remove(id: number) {
     return this.sessionsRepo.delete(id);
+  }
+
+  private validateDateRanges(
+    sessionStartDate: string,
+    sessionEndDate: string,
+    submissionStartDate: Date,
+    submissionEndDate: Date,
+  ) {
+    if (sessionStartDate > sessionEndDate) {
+      throw new BadRequestException(
+        'sessionStartDate must be before sessionEndDate',
+      );
+    }
+    if (submissionStartDate > submissionEndDate) {
+      throw new BadRequestException(
+        'submissionStartDate must be before submissionEndDate',
+      );
+    }
   }
 
   async calendar(sessionId: number, courseYearId: number, docenteId: string) {
@@ -102,8 +148,10 @@ export class SessionsService {
     const submissionWindowOpen =
       now >= session.submissionStartDate && now <= session.submissionEndDate;
 
+    const holidays = await this.holidaysService.getDateSet();
+
     const days = allDates
-      .filter((date) => !isWeekend(date))
+      .filter((date) => !isWeekend(date) && !holidays.has(date))
       .map((date) => {
         const booking = bookingByDate.get(date);
         if (!booking) {
