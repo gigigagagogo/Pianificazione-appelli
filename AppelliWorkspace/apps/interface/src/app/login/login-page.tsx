@@ -19,9 +19,12 @@ const LoginPage = () => {
 
     setSubmitting(true);
     try {
-      const { token } = await loginUser({ email, password });
+      const { token, role, name, surname } = await loginUser({ email, password });
       localStorage.setItem('token', token);
-      navigate('/appelli');
+      localStorage.setItem('role', role);
+      localStorage.setItem('name', name);
+      localStorage.setItem('surname', surname);
+      navigate(role === 'segreteria' ? '/segreteria' : '/appelli');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
     } finally {

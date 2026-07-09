@@ -62,6 +62,9 @@ export interface LoginPayload {
 
 export interface LoginResult {
   token: string;
+  role: Role;
+  name: string;
+  surname: string;
 }
 
 export function registerUser(payload: RegisterPayload) {
@@ -168,4 +171,40 @@ export function getCalendar(sessionId: number, courseYearId: number) {
   return get<CalendarResponse>(
     `/sessions/${sessionId}/calendar?courseYearId=${courseYearId}`,
   );
+}
+
+export interface CreateCoursePayload {
+  code: string;
+  name: string;
+}
+
+export function createCourse(payload: CreateCoursePayload) {
+  return post<Course>('/courses', payload);
+}
+
+export function getCourseYears() {
+  return get<CourseYear[]>('/courses/years');
+}
+
+export interface CreateCourseYearPayload {
+  courseId: number;
+  yearNumber: number;
+  label: string;
+}
+
+export function createCourseYear(payload: CreateCourseYearPayload) {
+  return post<CourseYear>('/courses/years', payload);
+}
+
+export interface CreateSessionPayload {
+  name: string;
+  sessionStartDate: string;
+  sessionEndDate: string;
+  submissionStartDate: string;
+  submissionEndDate: string;
+  courseYearIds: number[];
+}
+
+export function createSession(payload: CreateSessionPayload) {
+  return post<ExamSession>('/sessions', payload);
 }

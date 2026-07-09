@@ -24,7 +24,12 @@ async login(dto: LoginDto) {
     }
 
     const token = this.jwtService.sign({ sub: user.id, email: user.email, role: user.role });
-    return { token };
+    return {
+      token,
+      role: user.role,
+      name: user.name,
+      surname: user.surname,
+    };
   }
 
 }
