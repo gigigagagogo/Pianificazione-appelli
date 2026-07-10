@@ -1,11 +1,11 @@
-import { IsNotEmpty, IsString} from "class-validator";
+import { IsNotEmpty, IsString } from 'class-validator';
 
 export class CreateCourseDto {
-    @IsString()
-    @IsNotEmpty()
-    code!: string;
+  @IsString({ message: 'Il codice deve essere un testo.' })
+  @IsNotEmpty({ message: 'Il codice è obbligatorio.' })
+  code!: string;
 
-    @IsString()
-    @IsNotEmpty()
-    name!: string;
+  @IsString({ message: 'Il nome deve essere un testo.' })
+  @IsNotEmpty({ message: 'Il nome è obbligatorio.' })
+  name!: string;
 }

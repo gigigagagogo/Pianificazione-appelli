@@ -34,7 +34,7 @@ export class SessionsService {
       relations: ['courseYears', 'courseYears.course'],
     });
     if (!session) {
-      throw new NotFoundException('Exam session not found');
+      throw new NotFoundException('Sessione non trovata.');
     }
     return session;
   }
@@ -52,7 +52,7 @@ export class SessionsService {
     });
     if (courseYears.length !== dto.courseYearIds.length) {
       throw new BadRequestException(
-        'One or more of the provided courseYearIds do not exist',
+        'Uno o più corsi/anni selezionati non esistono più.',
       );
     }
     const session = this.sessionsRepo.create({
@@ -89,8 +89,8 @@ export class SessionsService {
       });
       if (courseYears.length !== dto.courseYearIds.length) {
         throw new BadRequestException(
-          'One or more of the provided courseYearIds do not exist',
-        );
+        'Uno o più corsi/anni selezionati non esistono più.',
+      );
       }
       session.courseYears = courseYears;
     }
@@ -109,12 +109,12 @@ export class SessionsService {
   ) {
     if (sessionStartDate > sessionEndDate) {
       throw new BadRequestException(
-        'sessionStartDate must be before sessionEndDate',
+        'La data di inizio sessione deve essere precedente alla data di fine sessione.',
       );
     }
     if (submissionStartDate > submissionEndDate) {
       throw new BadRequestException(
-        'submissionStartDate must be before submissionEndDate',
+        "La data di inizio inserimento deve essere precedente alla data di fine inserimento.",
       );
     }
   }
@@ -125,12 +125,12 @@ export class SessionsService {
       relations: ['courseYears'],
     });
     if (!session) {
-      throw new NotFoundException('Exam session not found');
+      throw new NotFoundException('Sessione non trovata.');
     }
     const isEnabled = session.courseYears?.some((y) => y.id === courseYearId);
     if (!isEnabled) {
       throw new NotFoundException(
-        'The selected course/year is not enabled for this session',
+        'Il corso/anno selezionato non è abilitato per questa sessione.',
       );
     }
 

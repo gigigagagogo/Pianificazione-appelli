@@ -95,6 +95,8 @@ export interface ExamSession {
   name: string;
   sessionStartDate: string;
   sessionEndDate: string;
+  submissionStartDate: string;
+  submissionEndDate: string;
   courseYears?: CourseYear[];
 }
 
@@ -207,4 +209,36 @@ export interface CreateSessionPayload {
 
 export function createSession(payload: CreateSessionPayload) {
   return post<ExamSession>('/sessions', payload);
+}
+
+export interface UpdateCoursePayload {
+  code?: string;
+  name?: string;
+}
+
+export function updateCourse(id: number, payload: UpdateCoursePayload) {
+  return patch<Course>(`/courses/${id}`, payload);
+}
+
+export interface UpdateCourseYearPayload {
+  courseId?: number;
+  yearNumber?: number;
+  label?: string;
+}
+
+export function updateCourseYear(id: number, payload: UpdateCourseYearPayload) {
+  return patch<CourseYear>(`/courses/years/${id}`, payload);
+}
+
+export interface UpdateSessionPayload {
+  name?: string;
+  sessionStartDate?: string;
+  sessionEndDate?: string;
+  submissionStartDate?: string;
+  submissionEndDate?: string;
+  courseYearIds?: number[];
+}
+
+export function updateSession(id: number, payload: UpdateSessionPayload) {
+  return patch<ExamSession>(`/sessions/${id}`, payload);
 }

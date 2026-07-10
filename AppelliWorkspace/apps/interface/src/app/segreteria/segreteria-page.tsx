@@ -1,6 +1,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { inputClass, labelClass } from '../shared/form-styles';
+import Modal from '../shared/modal';
 import {
   ApiError,
   Course,
@@ -12,16 +13,38 @@ import {
   getCourses,
   getCourseYears,
   getSessions,
+  updateCourse,
+  updateCourseYear,
+  updateSession,
 } from '../shared/api';
+
+type Section = 'courses' | 'years' | 'sessions';
+
+const toDatetimeLocal = (iso: string) => iso.slice(0, 16);
 
 const SegreteriaPage = () => {
   const navigate = useNavigate();
+
+  const [section, setSection] = useState<Section>('courses');
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseYears, setCourseYears] = useState<CourseYear[]>([]);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+const [courseFormError, setCourseFormError] = useState<string | null>(null);
+const [yearFormError, setYearFormError] = useState<string | null>(null);
+const [sessionFormError, setSessionFormError] = useState<string | null>(null);
+
+  const [courseModalOpen, setCourseModalOpen] = useState(false);
+  const [yearModalOpen, setYearModalOpen] = useState(false);
+  const [sessionModalOpen, setSessionModalOpen] = useState(false);
+
+  const [editingCourseId, setEditingCourseId] = useState<number | null>(null);
+  const [editingYearId, setEditingYearId] = useState<number | null>(null);
+  const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
 
   const [courseCode, setCourseCode] = useState('');
   const [courseName, setCourseName] = useState('');
@@ -37,6 +60,16 @@ const SegreteriaPage = () => {
   const [submissionEndDate, setSubmissionEndDate] = useState('');
   const [selectedYearIds, setSelectedYearIds] = useState<number[]>([]);
 
+  // Notifiche: scompaiono da sole dopo 8 secondi
+  useEffect(() => {
+    if (!message && !error) return;
+    const timer = setTimeout(() => {
+      setMessage(null);
+      setError(null);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [message, error]);
+
   const reloadAll = async () => {
     try {
       const [c, y, s] = await Promise.all([getCourses(), getCourseYears(), getSessions()]);
@@ -45,6 +78,8 @@ const SegreteriaPage = () => {
       setSessions(s);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -57,282 +92,613 @@ const SegreteriaPage = () => {
     navigate('/');
   };
 
-  const handleCreateCourse = async (e: FormEvent) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const activeSessionsCount = sessions.filter(
+    (s) => s.sessionStartDate <= today && s.sessionEndDate >= today,
+  ).length;
+
+  // --- Corsi ---
+  const resetCourseForm = () => {
+    setEditingCourseId(null);
+    setCourseCode('');
+    setCourseName('');
+    setCourseFormError(null);
+  };
+
+  const openNewCourse = () => {
+    resetCourseForm();
+    setCourseModalOpen(true);
+  };
+
+  const openEditCourse = (c: Course) => {
+    setEditingCourseId(c.id);
+    setCourseCode(c.code);
+    setCourseName(c.name);
+    setCourseModalOpen(true);
+  };
+
+  const handleSubmitCourse = async (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
     setMessage(null);
+    setCourseFormError(null);
     try {
-      await createCourse({ code: courseCode, name: courseName });
-      setCourseCode('');
-      setCourseName('');
-      setMessage('Corso di laurea creato.');
+      if (editingCourseId !== null) {
+        await updateCourse(editingCourseId, { code: courseCode, name: courseName });
+        setMessage('Corso di laurea modificato.');
+      } else {
+        await createCourse({ code: courseCode, name: courseName });
+        setMessage('Corso di laurea creato.');
+      }
+      resetCourseForm();
+      setCourseModalOpen(false);
       await reloadAll();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
+      setCourseFormError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
     }
   };
 
-  const handleCreateYear = async (e: FormEvent) => {
+  // --- Anni di frequenza ---
+  const resetYearForm = () => {
+    setEditingYearId(null);
+    setYearCourseId('');
+    setYearNumber(1);
+    setYearLabel('');
+    setYearFormError(null);
+  };
+
+  const openNewYear = () => {
+    resetYearForm();
+    setYearModalOpen(true);
+  };
+
+  const openEditYear = (y: CourseYear) => {
+    setEditingYearId(y.id);
+    setYearCourseId(String(y.courseId));
+    setYearNumber(y.yearNumber);
+    setYearLabel(y.label);
+    setYearModalOpen(true);
+  };
+
+  const handleSubmitYear = async (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
     setMessage(null);
+    setYearFormError(null);
     if (!yearCourseId) {
-      setError('Seleziona un corso di laurea.');
+      setYearFormError('Seleziona un corso di laurea.');
       return;
     }
     try {
-      await createCourseYear({
-        courseId: Number(yearCourseId),
-        yearNumber,
-        label: yearLabel,
-      });
-      setYearLabel('');
-      setMessage('Anno di frequenza creato.');
+      if (editingYearId !== null) {
+        await updateCourseYear(editingYearId, {
+          courseId: Number(yearCourseId),
+          yearNumber,
+          label: yearLabel,
+        });
+        setMessage('Anno di frequenza modificato.');
+      } else {
+        await createCourseYear({
+          courseId: Number(yearCourseId),
+          yearNumber,
+          label: yearLabel,
+        });
+        setMessage('Anno di frequenza creato.');
+      }
+      resetYearForm();
+      setYearModalOpen(false);
       await reloadAll();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
+      setYearFormError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
     }
   };
 
+  // --- Sessioni ---
   const toggleYear = (id: number) => {
     setSelectedYearIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
-  const handleCreateSession = async (e: FormEvent) => {
+  const resetSessionForm = () => {
+    setEditingSessionId(null);
+    setSessionName('');
+    setSessionStartDate('');
+    setSessionEndDate('');
+    setSubmissionStartDate('');
+    setSubmissionEndDate('');
+    setSelectedYearIds([]);
+    setSessionFormError(null);
+  };
+
+  const openNewSession = () => {
+    resetSessionForm();
+    setSessionModalOpen(true);
+  };
+
+  const openEditSession = (s: ExamSession) => {
+    setEditingSessionId(s.id);
+    setSessionName(s.name);
+    setSessionStartDate(s.sessionStartDate);
+    setSessionEndDate(s.sessionEndDate);
+    setSubmissionStartDate(toDatetimeLocal(s.submissionStartDate));
+    setSubmissionEndDate(toDatetimeLocal(s.submissionEndDate));
+    setSelectedYearIds((s.courseYears ?? []).map((y) => y.id));
+    setSessionModalOpen(true);
+  };
+
+  const handleSubmitSession = async (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setSessionFormError(null);
     setMessage(null);
     if (selectedYearIds.length === 0) {
-      setError('Seleziona almeno un corso/anno da abilitare.');
+      setSessionFormError('Seleziona almeno un corso/anno da abilitare.');
       return;
     }
     try {
-      await createSession({
+      const payload = {
         name: sessionName,
         sessionStartDate,
         sessionEndDate,
         submissionStartDate,
         submissionEndDate,
         courseYearIds: selectedYearIds,
-      });
-      setSessionName('');
-      setSelectedYearIds([]);
-      setMessage('Sessione d\'esame creata.');
+      };
+      if (editingSessionId !== null) {
+        await updateSession(editingSessionId, payload);
+        setMessage("Sessione d'esame modificata.");
+      } else {
+        await createSession(payload);
+        setMessage("Sessione d'esame creata.");
+      }
+      resetSessionForm();
+      setSessionModalOpen(false);
       await reloadAll();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
+      setSessionFormError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
     }
   };
 
+  const navItems: { key: Section; label: string }[] = [
+    { key: 'courses', label: 'Corsi di laurea' },
+    { key: 'years', label: 'Anni di frequenza' },
+    { key: 'sessions', label: "Sessioni d'esame" },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-8 py-5">
+    <div className="flex min-h-screen bg-gray-50">
+      <aside className="w-56 shrink-0 border-r border-gray-200 bg-white">
+        <div className="border-b border-gray-200 px-6 py-5">
           <span className="text-lg font-semibold tracking-wide text-indigo-600">
             Segreteria
           </span>
+        </div>
+        <nav className="flex flex-col gap-1 p-3">
+          {navItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setSection(item.key)}
+              className={`rounded-md px-3 py-2 text-left text-sm font-medium transition-colors ${
+                section === item.key
+                  ? 'bg-indigo-50 text-indigo-700'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <div className="mt-auto border-t border-gray-200 p-3">
           <button
             type="button"
             onClick={handleLogout}
-            className="text-sm font-medium text-gray-600 hover:underline"
+            className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-gray-500 hover:bg-gray-100"
           >
             Esci
           </button>
         </div>
-      </header>
+      </aside>
 
-      <main className="mx-auto max-w-4xl px-8 py-10">
-        {error && (
-          <p className="mb-6 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+      <main className="flex-1 px-8 py-8">
+        {(error || message) && (
+          <div
+            className={`fixed right-6 top-6 z-50 rounded-lg px-4 py-3 text-sm font-medium shadow-lg ${
+              error ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
+            }`}
+          >
+            {error ?? message}
+          </div>
         )}
-        {message && (
-          <p className="mb-6 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
-            {message}
+
+        <div className="mb-8 grid grid-cols-3 gap-4">
+          <div className="rounded-xl bg-white p-5 shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              Corsi di laurea
+            </p>
+            <p className="mt-1 text-2xl font-semibold text-gray-900">{courses.length}</p>
+          </div>
+          <div className="rounded-xl bg-white p-5 shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              Anni di frequenza
+            </p>
+            <p className="mt-1 text-2xl font-semibold text-gray-900">{courseYears.length}</p>
+          </div>
+          <div className="rounded-xl bg-white p-5 shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              Sessioni attive oggi
+            </p>
+            <p className="mt-1 text-2xl font-semibold text-gray-900">{activeSessionsCount}</p>
+          </div>
+        </div>
+
+        {loading ? (
+          <p className="text-sm text-gray-500">Caricamento...</p>
+        ) : (
+          <>
+            {section === 'courses' && (
+              <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">Corsi di laurea</h2>
+                  <button
+                    type="button"
+                    onClick={openNewCourse}
+                    className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                  >
+                    Nuovo corso
+                  </button>
+                </div>
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 text-xs uppercase text-gray-500">
+                      <th className="py-2">Codice</th>
+                      <th className="py-2">Nome</th>
+                      <th className="py-2">Anni collegati</th>
+                      <th className="py-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {courses.map((c) => (
+                      <tr key={c.id}>
+                        <td className="py-2 font-medium text-gray-900">{c.code}</td>
+                        <td className="py-2 text-gray-700">{c.name}</td>
+                        <td className="py-2 text-gray-500">
+                          {courseYears.filter((y) => y.courseId === c.id).length}
+                        </td>
+                        <td className="py-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => openEditCourse(c)}
+                            className="text-sm font-medium text-indigo-600 hover:underline"
+                          >
+                            Modifica
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {courses.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-6 text-center text-gray-400">
+                          Nessun corso ancora creato.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {section === 'years' && (
+              <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">Anni di frequenza</h2>
+                  <button
+                    type="button"
+                    onClick={openNewYear}
+                    className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                  >
+                    Nuovo anno
+                  </button>
+                </div>
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 text-xs uppercase text-gray-500">
+                      <th className="py-2">Etichetta</th>
+                      <th className="py-2">Corso di laurea</th>
+                      <th className="py-2">Anno</th>
+                      <th className="py-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {courseYears.map((y) => (
+                      <tr key={y.id}>
+                        <td className="py-2 font-medium text-gray-900">{y.label}</td>
+                        <td className="py-2 text-gray-700">
+                          {courses.find((c) => c.id === y.courseId)?.name ?? '—'}
+                        </td>
+                        <td className="py-2 text-gray-500">{y.yearNumber}</td>
+                        <td className="py-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => openEditYear(y)}
+                            className="text-sm font-medium text-indigo-600 hover:underline"
+                          >
+                            Modifica
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {courseYears.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-6 text-center text-gray-400">
+                          Nessun anno ancora creato.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {section === 'sessions' && (
+              <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">Sessioni d'esame</h2>
+                  <button
+                    type="button"
+                    onClick={openNewSession}
+                    className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                  >
+                    Nuova sessione
+                  </button>
+                </div>
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 text-xs uppercase text-gray-500">
+                      <th className="py-2">Nome</th>
+                      <th className="py-2">Periodo</th>
+                      <th className="py-2">Stato</th>
+                      <th className="py-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {sessions.map((s) => {
+                      const active = s.sessionStartDate <= today && s.sessionEndDate >= today;
+                      return (
+                        <tr key={s.id}>
+                          <td className="py-2 font-medium text-gray-900">{s.name}</td>
+                          <td className="py-2 text-gray-700">
+                            {s.sessionStartDate} → {s.sessionEndDate}
+                          </td>
+                          <td className="py-2">
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                active
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-gray-100 text-gray-600'
+                              }`}
+                            >
+                              {active ? 'Attiva' : 'Chiusa'}
+                            </span>
+                          </td>
+                          <td className="py-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => openEditSession(s)}
+                              className="text-sm font-medium text-indigo-600 hover:underline"
+                            >
+                              Modifica
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {sessions.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-6 text-center text-gray-400">
+                          Nessuna sessione ancora creata.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </section>
+            )}
+          </>
+        )}
+      </main>
+
+      <Modal
+        open={courseModalOpen}
+        title={editingCourseId !== null ? 'Modifica corso di laurea' : 'Nuovo corso di laurea'}
+        onClose={() => {
+          resetCourseForm();
+          setCourseModalOpen(false);
+        }}
+      >
+        {courseFormError && (
+          <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+            {courseFormError}
           </p>
         )}
+        <form onSubmit={handleSubmitCourse} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>Codice</label>
+            <input
+              className={inputClass}
+              value={courseCode}
+              onChange={(e) => setCourseCode(e.target.value)}
+              placeholder="es. INFLM"
+              required
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>Nome</label>
+            <input
+              className={inputClass}
+              value={courseName}
+              onChange={(e) => setCourseName(e.target.value)}
+              placeholder="es. Ingegneria Informatica Magistrale"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="mt-2 self-start rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            {editingCourseId !== null ? 'Salva modifiche' : 'Crea'}
+          </button>
+        </form>
+      </Modal>
 
-        <section className="mb-10 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">Nuovo corso di laurea</h2>
-          <form onSubmit={handleCreateCourse} className="mt-4 flex flex-wrap items-end gap-4">
-            <div className="flex flex-col gap-1">
-              <label className={labelClass}>Codice</label>
-              <input
-                className={inputClass}
-                value={courseCode}
-                onChange={(e) => setCourseCode(e.target.value)}
-                placeholder="es. INFLM"
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className={labelClass}>Nome</label>
-              <input
-                className={inputClass}
-                value={courseName}
-                onChange={(e) => setCourseName(e.target.value)}
-                placeholder="es. Ingegneria Informatica Magistrale"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+      <Modal
+        open={yearModalOpen}
+        title={editingYearId !== null ? 'Modifica anno di frequenza' : 'Nuovo anno di frequenza'}
+        onClose={() => {
+          resetYearForm();
+          setYearModalOpen(false);
+        }}
+      >
+        {yearFormError && (
+          <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+            {yearFormError}
+          </p>
+        )}
+        <form onSubmit={handleSubmitYear} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>Corso di laurea</label>
+            <select
+              className={inputClass}
+              value={yearCourseId}
+              onChange={(e) => setYearCourseId(e.target.value)}
+              required
             >
-              Crea
-            </button>
-          </form>
-        </section>
+              <option value="">-- seleziona --</option>
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>Numero anno</label>
+            <input
+              type="number"
+              min={1}
+              className={inputClass}
+              value={yearNumber}
+              onChange={(e) => setYearNumber(Number(e.target.value))}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>Etichetta</label>
+            <input
+              className={inputClass}
+              value={yearLabel}
+              onChange={(e) => setYearLabel(e.target.value)}
+              placeholder="es. INFLM-I"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="mt-2 self-start rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            {editingYearId !== null ? 'Salva modifiche' : 'Crea'}
+          </button>
+        </form>
+      </Modal>
 
-        <section className="mb-10 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">Nuovo anno di frequenza</h2>
-          <form onSubmit={handleCreateYear} className="mt-4 flex flex-wrap items-end gap-4">
-            <div className="flex flex-col gap-1">
-              <label className={labelClass}>Corso di laurea</label>
-              <select
-                className={inputClass}
-                value={yearCourseId}
-                onChange={(e) => setYearCourseId(e.target.value)}
-                required
-              >
-                <option value="">-- seleziona --</option>
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className={labelClass}>Numero anno</label>
+      <Modal
+        open={sessionModalOpen}
+        title={editingSessionId !== null ? "Modifica sessione d'esame" : "Nuova sessione d'esame"}
+        onClose={() => {
+          resetSessionForm();
+          setSessionModalOpen(false);
+        }}
+      >
+        {sessionFormError && (
+          <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+            {sessionFormError}
+          </p>
+        )}
+        <form onSubmit={handleSubmitSession} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>Nome sessione</label>
+            <input
+              className={inputClass}
+              value={sessionName}
+              onChange={(e) => setSessionName(e.target.value)}
+              placeholder="es. Giugno/Luglio 2026"
+              required
+            />
+          </div>
+          <div className="flex gap-4">
+            <div className="flex flex-1 flex-col gap-1">
+              <label className={labelClass}>Inizio sessione</label>
               <input
-                type="number"
-                min={1}
-                className={`${inputClass} w-24`}
-                value={yearNumber}
-                onChange={(e) => setYearNumber(Number(e.target.value))}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className={labelClass}>Etichetta</label>
-              <input
+                type="date"
                 className={inputClass}
-                value={yearLabel}
-                onChange={(e) => setYearLabel(e.target.value)}
-                placeholder="es. INFLM-I"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            >
-              Crea
-            </button>
-          </form>
-          <ul className="mt-4 flex flex-wrap gap-2">
-            {courseYears.map((y) => (
-              <li
-                key={y.id}
-                className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700"
-              >
-                {y.label}
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">Nuova sessione d'esame</h2>
-          <form onSubmit={handleCreateSession} className="mt-4 flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <label className={labelClass}>Nome sessione</label>
-              <input
-                className={inputClass}
-                value={sessionName}
-                onChange={(e) => setSessionName(e.target.value)}
-                placeholder="es. Giugno/Luglio 2026"
+                value={sessionStartDate}
+                onChange={(e) => setSessionStartDate(e.target.value)}
                 required
               />
             </div>
-            <div className="flex flex-wrap gap-4">
-              <div className="flex flex-col gap-1">
-                <label className={labelClass}>Inizio sessione</label>
-                <input
-                  type="date"
-                  className={inputClass}
-                  value={sessionStartDate}
-                  onChange={(e) => setSessionStartDate(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className={labelClass}>Fine sessione</label>
-                <input
-                  type="date"
-                  className={inputClass}
-                  value={sessionEndDate}
-                  onChange={(e) => setSessionEndDate(e.target.value)}
-                  required
-                />
-              </div>
+            <div className="flex flex-1 flex-col gap-1">
+              <label className={labelClass}>Fine sessione</label>
+              <input
+                type="date"
+                className={inputClass}
+                value={sessionEndDate}
+                onChange={(e) => setSessionEndDate(e.target.value)}
+                required
+              />
             </div>
-            <div className="flex flex-wrap gap-4">
-              <div className="flex flex-col gap-1">
-                <label className={labelClass}>Inizio inserimento</label>
-                <input
-                  type="datetime-local"
-                  className={inputClass}
-                  value={submissionStartDate}
-                  onChange={(e) => setSubmissionStartDate(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className={labelClass}>Fine inserimento</label>
-                <input
-                  type="datetime-local"
-                  className={inputClass}
-                  value={submissionEndDate}
-                  onChange={(e) => setSubmissionEndDate(e.target.value)}
-                  required
-                />
-              </div>
+          </div>
+          <div className="flex gap-4">
+            <div className="flex flex-1 flex-col gap-1">
+              <label className={labelClass}>Inizio inserimento</label>
+              <input
+                type="datetime-local"
+                className={inputClass}
+                value={submissionStartDate}
+                onChange={(e) => setSubmissionStartDate(e.target.value)}
+                required
+              />
             </div>
-            <div>
-              <span className={labelClass}>Corsi/anni abilitati</span>
-              <div className="mt-2 flex flex-wrap gap-3">
-                {courseYears.map((y) => (
-                  <label key={y.id} className="flex items-center gap-1 text-sm text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={selectedYearIds.includes(y.id)}
-                      onChange={() => toggleYear(y.id)}
-                    />
-                    {y.label}
-                  </label>
-                ))}
-              </div>
+            <div className="flex flex-1 flex-col gap-1">
+              <label className={labelClass}>Fine inserimento</label>
+              <input
+                type="datetime-local"
+                className={inputClass}
+                value={submissionEndDate}
+                onChange={(e) => setSubmissionEndDate(e.target.value)}
+                required
+              />
             </div>
-            <button
-              type="submit"
-              className="mt-2 self-start rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            >
-              Crea sessione
-            </button>
-          </form>
-
-          <ul className="mt-6 divide-y divide-gray-100">
-            {sessions.map((s) => (
-              <li key={s.id} className="py-2 text-sm text-gray-700">
-                <span className="font-medium">{s.name}</span> — {s.sessionStartDate} →{' '}
-                {s.sessionEndDate}
-              </li>
-            ))}
-          </ul>
-        </section>
-      </main>
+          </div>
+          <div>
+            <span className={labelClass}>Corsi/anni abilitati</span>
+            <div className="mt-2 flex max-h-32 flex-wrap gap-3 overflow-y-auto">
+              {courseYears.map((y) => (
+                <label key={y.id} className="flex items-center gap-1 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={selectedYearIds.includes(y.id)}
+                    onChange={() => toggleYear(y.id)}
+                  />
+                  {y.label}
+                </label>
+              ))}
+            </div>
+          </div>
+          <button
+            type="submit"
+            className="mt-2 self-start rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            {editingSessionId !== null ? 'Salva modifiche' : 'Crea sessione'}
+          </button>
+        </form>
+      </Modal>
     </div>
   );
 };
