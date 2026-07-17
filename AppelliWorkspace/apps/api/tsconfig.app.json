@@ -22,5 +22,22 @@
     "eslint.config.js",
     "eslint.config.cjs",
     "eslint.config.mjs"
+  ],
+  "references": [
+    {
+      "path": "../../libs/server/users/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/server/security/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/server/exams-planning/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/server/auth/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/database/tsconfig.lib.json"
+    }
   ]
 }

@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
-import { Holiday } from './app/holidays/holiday.entity';
+import { Holiday } from '@server/exams-planning';
 
 const FIXED_ITALIAN_HOLIDAYS: { month: number; day: number; description: string }[] = [
   { month: 1, day: 1, description: 'Capodanno' },

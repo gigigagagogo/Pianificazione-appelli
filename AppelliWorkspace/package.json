@@ -89,6 +89,8 @@
   "workspaces": [
     "apps/*",
     "api",
-    "api-e2e"
+    "api-e2e",
+    "libs/*",
+    "libs/server/*"
   ]
 }

@@ -1,8 +1,6 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
-import { Course } from './app/courses/course.entity';
-import { CourseYear } from './app/courses/course-year.entity';
-import { ExamSession } from './app/sessions/exam-session.entity';
+import { Course, CourseYear, ExamSession } from '@server/exams-planning';
 
 interface CourseSeed {
   code: string;
