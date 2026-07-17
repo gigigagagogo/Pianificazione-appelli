@@ -15,6 +15,18 @@ export class UsersService {
     return this.usersRepository.findOneBy({ email });
   }
 
+  findById(id: string): Promise<User | null> {
+    return this.usersRepository.findOneBy({ id });
+  }
+
+  findByRole(role: UserRole): Promise<User[]> {
+    return this.usersRepository.find({
+      where: { role },
+      select: { id: true, name: true, surname: true, email: true },
+      order: { surname: 'ASC' },
+    });
+  }
+
   async create(
     name: string,
     surname: string,

@@ -4,11 +4,11 @@ import {
   ApiError,
   Appello,
   CalendarDay,
-  Course,
+  CourseYear,
   createAppello,
   ExamSession,
   getCalendar,
-  getCourses,
+  getMyCourseYears,
   getSessions,
   updateAppello,
 } from '../shared/api';
@@ -65,9 +65,8 @@ const AddAppelloPage = () => {
   const location = useLocation();
   const editAppello = (location.state as { editAppello?: Appello } | null)?.editAppello ?? null;
 
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [courseYears, setCourseYears] = useState<CourseYear[]>([]);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
-  const [courseId, setCourseId] = useState<number | ''>(editAppello?.courseYear.courseId ?? '');
   const [courseYearId, setCourseYearId] = useState<number | ''>(editAppello?.courseYearId ?? '');
   const [sessionId, setSessionId] = useState<number | ''>(editAppello?.examSession.id ?? '');
 
@@ -75,20 +74,19 @@ const AddAppelloPage = () => {
   const [viewMonthKey, setViewMonthKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingCalendar, setLoadingCalendar] = useState(false);
+  const [loadingCourseYears, setLoadingCourseYears] = useState(true);
 
   useEffect(() => {
-    Promise.all([getCourses(), getSessions()])
-      .then(([coursesData, sessionsData]) => {
-        setCourses(coursesData);
+    Promise.all([getMyCourseYears(), getSessions()])
+      .then(([courseYearsData, sessionsData]) => {
+        setCourseYears(courseYearsData);
         setSessions(sessionsData);
       })
       .catch((err) =>
         setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.'),
-      );
+      )
+      .finally(() => setLoadingCourseYears(false));
   }, []);
-
-  const selectedCourse = courses.find((course) => course.id === courseId);
-  const availableYears = selectedCourse?.years ?? [];
 
   const availableSessions = useMemo(
     () =>
@@ -194,7 +192,7 @@ const AddAppelloPage = () => {
             <p className="mt-1 text-sm text-gray-500">
               {editAppello
                 ? `Stai modificando l'appello del ${editAppello.date} (${editAppello.courseYear.course?.name} — ${editAppello.courseYear.label} — ${editAppello.examSession.name}). Puoi cambiare corso, anno, sessione e/o data.`
-                : 'Scegli corso, anno e sessione per vedere le date disponibili.'}
+                : 'Scegli corso/anno e sessione per vedere le date disponibili.'}
             </p>
           </div>
           {editAppello && (
@@ -212,55 +210,50 @@ const AddAppelloPage = () => {
           <p className="mt-6 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
         )}
 
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <select
-            className={selectClass}
-            value={courseId}
-            onChange={(e) => {
-              setCourseId(e.target.value ? Number(e.target.value) : '');
-              setCourseYearId('');
-              setSessionId('');
-            }}
-          >
-            <option value="">Corso di laurea</option>
-            {courses.map((course) => (
-              <option key={course.id} value={course.id}>
-                {course.name}
-              </option>
-            ))}
-          </select>
+        {loadingCourseYears && (
+          <p className="mt-6 text-sm text-gray-500">Caricamento corsi...</p>
+        )}
 
-          <select
-            className={selectClass}
-            value={courseYearId}
-            disabled={!courseId}
-            onChange={(e) => {
-              setCourseYearId(e.target.value ? Number(e.target.value) : '');
-              setSessionId('');
-            }}
-          >
-            <option value="">Anno di frequenza</option>
-            {availableYears.map((year) => (
-              <option key={year.id} value={year.id}>
-                {year.label}
-              </option>
-            ))}
-          </select>
+        {!loadingCourseYears && courseYears.length === 0 && (
+          <p className="mt-6 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            Non ti è stato ancora assegnato nessun corso di laurea/anno di frequenza. Contatta la
+            segreteria per farti assegnare un insegnamento.
+          </p>
+        )}
 
-          <select
-            className={selectClass}
-            value={sessionId}
-            disabled={!courseYearId}
-            onChange={(e) => setSessionId(e.target.value ? Number(e.target.value) : '')}
-          >
-            <option value="">Sessione</option>
-            {availableSessions.map((session) => (
-              <option key={session.id} value={session.id}>
-                {session.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!loadingCourseYears && courseYears.length > 0 && (
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <select
+              className={selectClass}
+              value={courseYearId}
+              onChange={(e) => {
+                setCourseYearId(e.target.value ? Number(e.target.value) : '');
+                setSessionId('');
+              }}
+            >
+              <option value="">Corso di laurea - anno di frequenza</option>
+              {courseYears.map((year) => (
+                <option key={year.id} value={year.id}>
+                  {year.course?.name} — {year.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className={selectClass}
+              value={sessionId}
+              disabled={!courseYearId}
+              onChange={(e) => setSessionId(e.target.value ? Number(e.target.value) : '')}
+            >
+              <option value="">Sessione</option>
+              {availableSessions.map((session) => (
+                <option key={session.id} value={session.id}>
+                  {session.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {loadingCalendar && (
           <p className="mt-6 text-sm text-gray-500">Caricamento calendario...</p>

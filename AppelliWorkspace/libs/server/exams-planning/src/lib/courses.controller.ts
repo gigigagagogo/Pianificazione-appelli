@@ -1,6 +1,18 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import type { Request } from 'express';
 import { JwtAuthGuard, RolesGuard, Roles } from '@server/security';
 import { UserRole } from '@server/users';
+import { JwtPayload } from '@server/auth';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { CreateCourseYearDto } from './dto/create-course-year.dto';
@@ -32,6 +44,13 @@ export class CoursesController {
   @Get('years')
   findAllYears() {
     return this.coursesService.findAllYears();
+  }
+
+  @Get('years/mine')
+  @Roles(UserRole.DOCENTE)
+  findMineYears(@Req() req: Request) {
+    const docente = req.user as JwtPayload;
+    return this.coursesService.findMineYears(docente.sub);
   }
 
   @Post('years')

@@ -82,12 +82,29 @@ export interface Course {
   years?: CourseYear[];
 }
 
+export interface Docente {
+  id: string;
+  name: string;
+  surname: string;
+  email: string;
+}
+
+export function getDocenti() {
+  return get<Docente[]>('/users/docenti');
+}
+
 export interface CourseYear {
   id: number;
   courseId: number;
   yearNumber: number;
   label: string;
   course?: Course;
+  docenteId?: string;
+  docente?: Docente;
+}
+
+export function getMyCourseYears() {
+  return get<CourseYear[]>('/courses/years/mine');
 }
 
 export interface ExamSession {
@@ -192,6 +209,7 @@ export interface CreateCourseYearPayload {
   courseId: number;
   yearNumber: number;
   label: string;
+  docenteId?: string;
 }
 
 export function createCourseYear(payload: CreateCourseYearPayload) {
@@ -224,6 +242,7 @@ export interface UpdateCourseYearPayload {
   courseId?: number;
   yearNumber?: number;
   label?: string;
+  docenteId?: string;
 }
 
 export function updateCourseYear(id: number, payload: UpdateCourseYearPayload) {

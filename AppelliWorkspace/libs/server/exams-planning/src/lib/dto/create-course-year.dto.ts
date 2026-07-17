@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 
 export class CreateCourseYearDto {
   @IsInt({ message: 'Seleziona un corso di laurea valido.' })
@@ -11,4 +11,8 @@ export class CreateCourseYearDto {
   @IsString({ message: "L'etichetta deve essere un testo." })
   @IsNotEmpty({ message: "L'etichetta è obbligatoria." })
   label!: string;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'Il docente selezionato non è valido.' })
+  docenteId?: string;
 }

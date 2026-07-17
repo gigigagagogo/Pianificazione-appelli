@@ -13,7 +13,6 @@
   "dependencies": {
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
-    "@nestjs/passport": "^11.0.5",
-    "@server/users": "*"
+    "@nestjs/passport": "^11.0.5"
   }
 }

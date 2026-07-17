@@ -1,4 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { User } from '@server/users';
 import { Course } from './course.entity';
 
 @Entity('course_years')
@@ -18,4 +19,11 @@ export class CourseYear {
 
   @Column({ unique: true })
   label!: string;
+
+  @Column({ name: 'docente_id', nullable: true })
+  docenteId?: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'docente_id' })
+  docente?: User | null;
 }

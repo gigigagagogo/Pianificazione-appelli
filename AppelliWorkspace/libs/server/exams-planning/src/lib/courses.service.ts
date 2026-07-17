@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { UserRole, UsersService } from '@server/users';
 import { Course } from './entities/course.entity';
 import { CourseYear } from './entities/course-year.entity';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -15,6 +16,7 @@ export class CoursesService {
     private readonly coursesRepo: Repository<Course>,
     @InjectRepository(CourseYear)
     private readonly courseYearsRepo: Repository<CourseYear>,
+    private readonly usersService: UsersService,
   ) {}
 
   createCourse(dto: CreateCourseDto) {
@@ -27,6 +29,7 @@ export class CoursesService {
     if (!course) {
       throw new NotFoundException(`Corso con id ${dto.courseId} non trovato.`);
     }
+    await this.assertValidDocente(dto.docenteId);
     const year = this.courseYearsRepo.create(dto);
     return this.courseYearsRepo.save(year);
   }
@@ -40,6 +43,14 @@ export class CoursesService {
 
   findAllYears() {
     return this.courseYearsRepo.find({
+      relations: ['course', 'docente'],
+      order: { yearNumber: 'ASC' },
+    });
+  }
+
+  findMineYears(docenteId: string) {
+    return this.courseYearsRepo.find({
+      where: { docenteId },
       relations: ['course'],
       order: { yearNumber: 'ASC' },
     });
@@ -65,7 +76,20 @@ export class CoursesService {
         throw new NotFoundException(`Corso con id ${dto.courseId} non trovato.`);
       }
     }
+    if (dto.docenteId !== undefined) {
+      await this.assertValidDocente(dto.docenteId);
+    }
     Object.assign(year, dto);
     return this.courseYearsRepo.save(year);
+  }
+
+  private async assertValidDocente(docenteId?: string): Promise<void> {
+    if (!docenteId) {
+      return;
+    }
+    const user = await this.usersService.findById(docenteId);
+    if (!user || user.role !== UserRole.DOCENTE) {
+      throw new BadRequestException('Il docente selezionato non è valido.');
+    }
   }
 }

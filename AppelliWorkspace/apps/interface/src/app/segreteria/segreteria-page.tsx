@@ -6,12 +6,14 @@ import {
   ApiError,
   Course,
   CourseYear,
+  Docente,
   ExamSession,
   createCourse,
   createCourseYear,
   createSession,
   getCourses,
   getCourseYears,
+  getDocenti,
   getSessions,
   updateCourse,
   updateCourseYear,
@@ -30,6 +32,7 @@ const SegreteriaPage = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseYears, setCourseYears] = useState<CourseYear[]>([]);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
+  const [docenti, setDocenti] = useState<Docente[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,6 +55,7 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
   const [yearCourseId, setYearCourseId] = useState('');
   const [yearNumber, setYearNumber] = useState(1);
   const [yearLabel, setYearLabel] = useState('');
+  const [yearDocenteId, setYearDocenteId] = useState('');
 
   const [sessionName, setSessionName] = useState('');
   const [sessionStartDate, setSessionStartDate] = useState('');
@@ -72,10 +76,16 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
 
   const reloadAll = async () => {
     try {
-      const [c, y, s] = await Promise.all([getCourses(), getCourseYears(), getSessions()]);
+      const [c, y, s, d] = await Promise.all([
+        getCourses(),
+        getCourseYears(),
+        getSessions(),
+        getDocenti(),
+      ]);
       setCourses(c);
       setCourseYears(y);
       setSessions(s);
+      setDocenti(d);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
     } finally {
@@ -143,6 +153,7 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
     setYearCourseId('');
     setYearNumber(1);
     setYearLabel('');
+    setYearDocenteId('');
     setYearFormError(null);
   };
 
@@ -156,6 +167,7 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
     setYearCourseId(String(y.courseId));
     setYearNumber(y.yearNumber);
     setYearLabel(y.label);
+    setYearDocenteId(y.docenteId ?? '');
     setYearModalOpen(true);
   };
 
@@ -173,6 +185,7 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
           courseId: Number(yearCourseId),
           yearNumber,
           label: yearLabel,
+          docenteId: yearDocenteId || undefined,
         });
         setMessage('Anno di frequenza modificato.');
       } else {
@@ -180,6 +193,7 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
           courseId: Number(yearCourseId),
           yearNumber,
           label: yearLabel,
+          docenteId: yearDocenteId || undefined,
         });
         setMessage('Anno di frequenza creato.');
       }
@@ -404,31 +418,38 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
                       <th className="py-2">Etichetta</th>
                       <th className="py-2">Corso di laurea</th>
                       <th className="py-2">Anno</th>
+                      <th className="py-2">Docente titolare</th>
                       <th className="py-2"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {courseYears.map((y) => (
-                      <tr key={y.id}>
-                        <td className="py-2 font-medium text-gray-900">{y.label}</td>
-                        <td className="py-2 text-gray-700">
-                          {courses.find((c) => c.id === y.courseId)?.name ?? '—'}
-                        </td>
-                        <td className="py-2 text-gray-500">{y.yearNumber}</td>
-                        <td className="py-2 text-right">
-                          <button
-                            type="button"
-                            onClick={() => openEditYear(y)}
-                            className="text-sm font-medium text-indigo-600 hover:underline"
-                          >
-                            Modifica
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {courseYears.map((y) => {
+                      const docente = docenti.find((d) => d.id === y.docenteId);
+                      return (
+                        <tr key={y.id}>
+                          <td className="py-2 font-medium text-gray-900">{y.label}</td>
+                          <td className="py-2 text-gray-700">
+                            {courses.find((c) => c.id === y.courseId)?.name ?? '—'}
+                          </td>
+                          <td className="py-2 text-gray-500">{y.yearNumber}</td>
+                          <td className="py-2 text-gray-700">
+                            {docente ? `${docente.name} ${docente.surname}` : 'Non assegnato'}
+                          </td>
+                          <td className="py-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => openEditYear(y)}
+                              className="text-sm font-medium text-indigo-600 hover:underline"
+                            >
+                              Modifica
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {courseYears.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="py-6 text-center text-gray-400">
+                        <td colSpan={5} className="py-6 text-center text-gray-400">
                           Nessun anno ancora creato.
                         </td>
                       </tr>
@@ -598,6 +619,21 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
               placeholder="es. INFLM-I"
               required
             />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>Docente titolare</label>
+            <select
+              className={inputClass}
+              value={yearDocenteId}
+              onChange={(e) => setYearDocenteId(e.target.value)}
+            >
+              <option value="">-- non assegnato --</option>
+              {docenti.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name} {d.surname}
+                </option>
+              ))}
+            </select>
           </div>
           <button
             type="submit"
