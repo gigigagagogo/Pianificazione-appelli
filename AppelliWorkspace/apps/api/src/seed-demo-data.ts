@@ -1,38 +1,75 @@
 import 'reflect-metadata';
+import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { Course, CourseYear, ExamSession } from '@server/exams-planning';
+import { User, UserRole } from '@server/users';
+
+const DEMO_PASSWORD = 'Password123!';
+
+interface UserSeed {
+  name: string;
+  surname: string;
+  email: string;
+}
+
+// Docente Marino non riceve nessun corso assegnato: serve a verificare lo
+// stato "nessun corso assegnato" nella pagina di inserimento appelli.
+const DOCENTI: UserSeed[] = [
+  { name: 'Mario', surname: 'Rossi', email: 'mario.rossi@unibs.it' },
+  { name: 'Laura', surname: 'Bianchi', email: 'laura.bianchi@unibs.it' },
+  { name: 'Giuseppe', surname: 'Verdi', email: 'giuseppe.verdi@unibs.it' },
+  { name: 'Anna', surname: 'Ferrari', email: 'anna.ferrari@unibs.it' },
+  { name: 'Marco', surname: 'Colombo', email: 'marco.colombo@unibs.it' },
+  { name: 'Chiara', surname: 'Ricci', email: 'chiara.ricci@unibs.it' },
+  { name: 'Luca', surname: 'Marino', email: 'luca.marino@unibs.it' },
+];
+
+const SEGRETERIA: UserSeed = {
+  name: 'Sofia',
+  surname: 'Segretari',
+  email: 'segreteria@unibs.it',
+};
 
 interface CourseSeed {
   code: string;
   name: string;
-  years: { yearNumber: number; label: string }[];
+  years: { yearNumber: number; label: string; docenteEmail?: string }[];
 }
 
 const COURSES: CourseSeed[] = [
   {
     code: 'INFTL',
     name: 'Ingegneria Informatica Triennale',
-    years: [{ yearNumber: 1, label: 'INFTL-I' }],
+    years: [
+      { yearNumber: 1, label: 'INFTL-I', docenteEmail: 'mario.rossi@unibs.it' },
+      { yearNumber: 2, label: 'INFTL-II', docenteEmail: 'laura.bianchi@unibs.it' },
+    ],
   },
   {
     code: 'INFLM',
     name: 'Ingegneria Informatica Magistrale',
-    years: [{ yearNumber: 1, label: 'INFLM-I' }],
+    years: [{ yearNumber: 1, label: 'INFLM-I', docenteEmail: 'giuseppe.verdi@unibs.it' }],
   },
   {
     code: 'MATTL',
     name: 'Matematica Triennale',
-    years: [{ yearNumber: 1, label: 'MATTL-I' }],
+    years: [{ yearNumber: 1, label: 'MATTL-I', docenteEmail: 'anna.ferrari@unibs.it' }],
   },
   {
     code: 'ECOTL',
     name: 'Economia Aziendale Triennale',
-    years: [{ yearNumber: 1, label: 'ECOTL-I' }],
+    years: [{ yearNumber: 1, label: 'ECOTL-I', docenteEmail: 'marco.colombo@unibs.it' }],
   },
   {
     code: 'GIUTL',
     name: 'Giurisprudenza Triennale',
+    // Volutamente senza docente: mostra lo stato "Non assegnato" in Segreteria.
     years: [{ yearNumber: 1, label: 'GIUTL-I' }],
+  },
+  {
+    code: 'FISTL',
+    name: 'Fisica Triennale',
+    years: [{ yearNumber: 1, label: 'FISTL-I', docenteEmail: 'chiara.ricci@unibs.it' }],
   },
 ];
 
@@ -54,7 +91,7 @@ async function seedDemoData() {
     username: process.env['PGUSER'] || 'appelli',
     password: process.env['PGPASSWORD'] || 'appelli',
     database: process.env['PGDATABASE'] || 'appelli',
-    entities: [Course, CourseYear, ExamSession],
+    entities: [Course, CourseYear, ExamSession, User],
     synchronize: true,
   });
 
@@ -64,6 +101,30 @@ async function seedDemoData() {
   const courseRepo = dataSource.getRepository(Course);
   const yearRepo = dataSource.getRepository(CourseYear);
   const sessionRepo = dataSource.getRepository(ExamSession);
+  const userRepo = dataSource.getRepository(User);
+
+  // --- Utenti: docenti + segreteria ---
+  const hashedPassword = await bcrypt.hash(DEMO_PASSWORD, 10);
+  const userByEmail = new Map<string, User>();
+
+  for (const u of [...DOCENTI, SEGRETERIA]) {
+    let user = await userRepo.findOne({ where: { email: u.email } });
+    if (!user) {
+      user = await userRepo.save(
+        userRepo.create({
+          name: u.name,
+          surname: u.surname,
+          email: u.email,
+          password: hashedPassword,
+          role: u === SEGRETERIA ? UserRole.SEGRETERIA : UserRole.DOCENTE,
+        }),
+      );
+      console.log(`Utente creato: ${u.name} ${u.surname} (${u.email})`);
+    } else {
+      console.log(`Utente già presente: ${u.name} ${u.surname} (${u.email})`);
+    }
+    userByEmail.set(u.email, user);
+  }
 
   const allCreatedYears: CourseYear[] = [];
 
@@ -77,12 +138,23 @@ async function seedDemoData() {
     }
 
     for (const y of c.years) {
+      const docenteId = y.docenteEmail ? userByEmail.get(y.docenteEmail)?.id : undefined;
+
       let year = await yearRepo.findOne({ where: { label: y.label } });
       if (!year) {
         year = await yearRepo.save(
-          yearRepo.create({ courseId: course.id, yearNumber: y.yearNumber, label: y.label }),
+          yearRepo.create({
+            courseId: course.id,
+            yearNumber: y.yearNumber,
+            label: y.label,
+            docenteId,
+          }),
         );
-        console.log(`  Anno creato: ${y.label}`);
+        console.log(`  Anno creato: ${y.label}${docenteId ? ' (docente assegnato)' : ''}`);
+      } else if (docenteId && year.docenteId !== docenteId) {
+        year.docenteId = docenteId;
+        year = await yearRepo.save(year);
+        console.log(`  Anno già presente, docente assegnato ora: ${y.label}`);
       } else {
         console.log(`  Anno già presente: ${y.label}`);
       }
@@ -114,7 +186,7 @@ async function seedDemoData() {
       sessionEndDate: toDateString(addDays(now, 20)),
       submissionStartDate: addDays(now, -10),
       submissionEndDate: addDays(now, 15),
-      courseYearLabels: ['INFTL-I', 'INFLM-I', 'ECOTL-I'],
+      courseYearLabels: ['INFTL-I', 'INFTL-II', 'INFLM-I', 'ECOTL-I', 'FISTL-I'],
     },
     {
       name: 'Sessione straordinaria primavera 2026 (attiva)',
@@ -138,7 +210,15 @@ async function seedDemoData() {
       sessionEndDate: toDateString(addDays(now, 180)),
       submissionStartDate: addDays(now, 140),
       submissionEndDate: addDays(now, 175),
-      courseYearLabels: ['INFTL-I', 'GIUTL-I', 'MATTL-I', 'INFLM-I', 'ECOTL-I'],
+      courseYearLabels: [
+        'INFTL-I',
+        'INFTL-II',
+        'GIUTL-I',
+        'MATTL-I',
+        'INFLM-I',
+        'ECOTL-I',
+        'FISTL-I',
+      ],
     },
   ];
 
@@ -164,6 +244,10 @@ async function seedDemoData() {
   }
 
   console.log('Seed completato.');
+  console.log('');
+  console.log(`Password per tutti gli utenti creati dal seed: ${DEMO_PASSWORD}`);
+  console.log(`Segreteria: ${SEGRETERIA.email}`);
+  console.log(`Docenti: ${DOCENTI.map((d) => d.email).join(', ')}`);
   await dataSource.destroy();
 }
 

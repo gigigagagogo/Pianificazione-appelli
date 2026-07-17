@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { UserRole, UsersService } from '@server/users';
 import { Course } from './entities/course.entity';
 import { CourseYear } from './entities/course-year.entity';
+import { Appelli } from './entities/appelli.entity';
+import { ExamSession } from './entities/exam-session.entity';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { CreateCourseYearDto } from './dto/create-course-year.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
@@ -16,6 +18,10 @@ export class CoursesService {
     private readonly coursesRepo: Repository<Course>,
     @InjectRepository(CourseYear)
     private readonly courseYearsRepo: Repository<CourseYear>,
+    @InjectRepository(Appelli)
+    private readonly appelliRepo: Repository<Appelli>,
+    @InjectRepository(ExamSession)
+    private readonly examSessionsRepo: Repository<ExamSession>,
     private readonly usersService: UsersService,
   ) {}
 
@@ -44,6 +50,15 @@ export class CoursesService {
   findAllYears() {
     return this.courseYearsRepo.find({
       relations: ['course', 'docente'],
+      select: {
+        id: true,
+        courseId: true,
+        yearNumber: true,
+        label: true,
+        docenteId: true,
+        course: { id: true, code: true, name: true },
+        docente: { id: true, name: true, surname: true, email: true },
+      },
       order: { yearNumber: 'ASC' },
     });
   }
@@ -81,6 +96,45 @@ export class CoursesService {
     }
     Object.assign(year, dto);
     return this.courseYearsRepo.save(year);
+  }
+
+  async deleteCourse(id: number): Promise<void> {
+    const course = await this.coursesRepo.findOne({ where: { id }, relations: ['years'] });
+    if (!course) {
+      throw new NotFoundException(`Corso con id ${id} non trovato.`);
+    }
+    if (course.years.length > 0) {
+      throw new BadRequestException(
+        'Impossibile eliminare il corso: elimina prima i suoi anni di frequenza.',
+      );
+    }
+    await this.coursesRepo.remove(course);
+  }
+
+  async deleteYear(id: number): Promise<void> {
+    const year = await this.courseYearsRepo.findOne({ where: { id } });
+    if (!year) {
+      throw new NotFoundException(`Anno di corso con id ${id} non trovato.`);
+    }
+
+    const appelliCount = await this.appelliRepo.count({ where: { courseYearId: id } });
+    if (appelliCount > 0) {
+      throw new BadRequestException(
+        'Impossibile eliminare l\'anno di frequenza: sono già stati inseriti degli appelli per questo corso/anno.',
+      );
+    }
+
+    const sessionsCount = await this.examSessionsRepo
+      .createQueryBuilder('session')
+      .innerJoin('session.courseYears', 'year', 'year.id = :id', { id })
+      .getCount();
+    if (sessionsCount > 0) {
+      throw new BadRequestException(
+        'Impossibile eliminare l\'anno di frequenza: è abilitato in una o più sessioni d\'esame. Rimuovilo prima dalle sessioni.',
+      );
+    }
+
+    await this.courseYearsRepo.remove(year);
   }
 
   private async assertValidDocente(docenteId?: string): Promise<void> {

@@ -11,6 +11,8 @@ import {
   createCourse,
   createCourseYear,
   createSession,
+  deleteCourse,
+  deleteCourseYear,
   getCourses,
   getCourseYears,
   getDocenti,
@@ -147,6 +149,19 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
     }
   };
 
+  const handleDeleteCourse = async (c: Course) => {
+    if (!window.confirm(`Vuoi eliminare il corso "${c.name}"?`)) return;
+    setMessage(null);
+    setError(null);
+    try {
+      await deleteCourse(c.id);
+      setMessage('Corso di laurea eliminato.');
+      await reloadAll();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
+    }
+  };
+
   // --- Anni di frequenza ---
   const resetYearForm = () => {
     setEditingYearId(null);
@@ -202,6 +217,19 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
       await reloadAll();
     } catch (err) {
       setYearFormError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
+    }
+  };
+
+  const handleDeleteYear = async (y: CourseYear) => {
+    if (!window.confirm(`Vuoi eliminare l'anno di frequenza "${y.label}"?`)) return;
+    setMessage(null);
+    setError(null);
+    try {
+      await deleteCourseYear(y.id);
+      setMessage('Anno di frequenza eliminato.');
+      await reloadAll();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
     }
   };
 
@@ -378,13 +406,22 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
                           {courseYears.filter((y) => y.courseId === c.id).length}
                         </td>
                         <td className="py-2 text-right">
-                          <button
-                            type="button"
-                            onClick={() => openEditCourse(c)}
-                            className="text-sm font-medium text-indigo-600 hover:underline"
-                          >
-                            Modifica
-                          </button>
+                          <div className="flex justify-end gap-4">
+                            <button
+                              type="button"
+                              onClick={() => openEditCourse(c)}
+                              className="text-sm font-medium text-indigo-600 hover:underline"
+                            >
+                              Modifica
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCourse(c)}
+                              className="text-sm font-medium text-red-600 hover:underline"
+                            >
+                              Elimina
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -436,13 +473,22 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
                             {docente ? `${docente.name} ${docente.surname}` : 'Non assegnato'}
                           </td>
                           <td className="py-2 text-right">
-                            <button
-                              type="button"
-                              onClick={() => openEditYear(y)}
-                              className="text-sm font-medium text-indigo-600 hover:underline"
-                            >
-                              Modifica
-                            </button>
+                            <div className="flex justify-end gap-4">
+                              <button
+                                type="button"
+                                onClick={() => openEditYear(y)}
+                                className="text-sm font-medium text-indigo-600 hover:underline"
+                              >
+                                Modifica
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteYear(y)}
+                                className="text-sm font-medium text-red-600 hover:underline"
+                              >
+                                Elimina
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );

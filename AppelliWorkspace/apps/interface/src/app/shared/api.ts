@@ -238,6 +238,14 @@ export function updateCourse(id: number, payload: UpdateCoursePayload) {
   return patch<Course>(`/courses/${id}`, payload);
 }
 
+export function deleteCourse(id: number) {
+  return del<void>(`/courses/${id}`);
+}
+
+export function deleteCourseYear(id: number) {
+  return del<void>(`/courses/years/${id}`);
+}
+
 export interface UpdateCourseYearPayload {
   courseId?: number;
   yearNumber?: number;

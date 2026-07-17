@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
@@ -41,6 +44,13 @@ export class CoursesController {
     return this.coursesService.updateCourse(id, dto);
   }
 
+  @Delete(':id')
+  @Roles(UserRole.SEGRETERIA)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteCourse(@Param('id', ParseIntPipe) id: number) {
+    return this.coursesService.deleteCourse(id);
+  }
+
   @Get('years')
   findAllYears() {
     return this.coursesService.findAllYears();
@@ -63,5 +73,12 @@ export class CoursesController {
   @Roles(UserRole.SEGRETERIA)
   updateYear(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCourseYearDto) {
     return this.coursesService.updateYear(id, dto);
+  }
+
+  @Delete('years/:id')
+  @Roles(UserRole.SEGRETERIA)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteYear(@Param('id', ParseIntPipe) id: number) {
+    return this.coursesService.deleteYear(id);
   }
 }
