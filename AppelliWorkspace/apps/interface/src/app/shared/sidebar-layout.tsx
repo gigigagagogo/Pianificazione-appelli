@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { LogoutIcon } from './icons';
 
 export interface SidebarNavItem {
   key: string;
@@ -16,7 +17,7 @@ interface SidebarLayoutProps {
 
 export const SidebarLayout = ({ title, navItems, onLogout, children }: SidebarLayoutProps) => (
   <div className="flex min-h-screen bg-gray-50">
-    <aside className="flex w-56 shrink-0 flex-col border-r border-gray-200 bg-white">
+    <aside className="sticky top-0 flex h-screen w-56 shrink-0 flex-col border-r border-gray-200 bg-white">
       <div className="border-b border-gray-200 px-6 py-5">
         <span className="text-lg font-semibold tracking-wide text-indigo-600">{title}</span>
       </div>
@@ -38,8 +39,9 @@ export const SidebarLayout = ({ title, navItems, onLogout, children }: SidebarLa
         <button
           type="button"
           onClick={onLogout}
-          className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-gray-500 hover:bg-gray-100"
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50"
         >
+          <LogoutIcon size={16} />
           Esci
         </button>
       </div>
