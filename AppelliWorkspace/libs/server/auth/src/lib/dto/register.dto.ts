@@ -1,5 +1,4 @@
-import { IsEmail, IsEnum, IsString, Matches, MinLength } from 'class-validator';
-import { UserRole } from '@server/users';
+import { IsEmail, IsString, Matches, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsString()
@@ -23,7 +22,4 @@ export class RegisterDto {
     message: 'La password deve contenere almeno un carattere speciale',
   })
   password!: string;
-
-  @IsEnum(UserRole)
-  role!: UserRole;
 }

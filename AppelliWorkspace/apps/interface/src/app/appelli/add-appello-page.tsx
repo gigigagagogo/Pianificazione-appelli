@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ApiError,
   Appello,
@@ -12,6 +12,7 @@ import {
   getSessions,
   updateAppello,
 } from '../shared/api';
+import SidebarLayout from '../shared/sidebar-layout';
 
 const selectClass =
   'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500';
@@ -172,18 +173,29 @@ const AddAppelloPage = () => {
 
   const weeks = buildWeeks(visibleDays);
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-8 py-5">
-          <span className="text-lg font-semibold tracking-wide text-indigo-600">Appelli</span>
-          <Link to="/appelli" className="text-sm font-medium text-indigo-600 hover:underline">
-            ← I miei appelli
-          </Link>
-        </div>
-      </header>
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate('/');
+  };
 
-      <main className="mx-auto max-w-4xl px-8 py-10">
+  const navItems = [
+    {
+      key: 'mine',
+      label: 'I miei appelli',
+      active: false,
+      onClick: () => navigate('/appelli', { state: { view: 'mine' } }),
+    },
+    {
+      key: 'all',
+      label: 'Tutti gli appelli',
+      active: false,
+      onClick: () => navigate('/appelli', { state: { view: 'all' } }),
+    },
+    { key: 'nuovo', label: '+ Aggiungi appello', active: true, onClick: () => undefined },
+  ];
+
+  return (
+    <SidebarLayout title="Docente" navItems={navItems} onLogout={handleLogout}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">
@@ -340,8 +352,7 @@ const AddAppelloPage = () => {
             </div>
           </div>
         )}
-      </main>
-    </div>
+    </SidebarLayout>
   );
 };
 

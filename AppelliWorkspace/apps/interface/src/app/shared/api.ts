@@ -43,7 +43,6 @@ export interface RegisterPayload {
   surname: string;
   email: string;
   password: string;
-  role: Role;
 }
 
 export interface RegisteredUser {

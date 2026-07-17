@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { enumerateDates, isWeekend } from './common/date.util';
 import { CourseYear } from './entities/course-year.entity';
 import { Appelli } from './entities/appelli.entity';
@@ -88,12 +88,29 @@ export class SessionsService {
       if (courseYears.length !== dto.courseYearIds.length) {
         throw new BadRequestException('Uno o più corsi/anni selezionati non esistono più.');
       }
+      const orphanedAppelli = await this.appelliRepo.count({
+        where: { examSession: { id }, courseYearId: Not(In(dto.courseYearIds)) },
+      });
+      if (orphanedAppelli > 0) {
+        throw new BadRequestException(
+          'Impossibile rimuovere un corso/anno dalla sessione: ha già appelli prenotati in questa sessione.',
+        );
+      }
       session.courseYears = courseYears;
     }
     return this.sessionsRepo.save(session);
   }
 
-  remove(id: number) {
+  async remove(id: number) {
+    await this.findOneOrFail(id);
+    const appelliCount = await this.appelliRepo.count({
+      where: { examSession: { id } },
+    });
+    if (appelliCount > 0) {
+      throw new BadRequestException(
+        'Impossibile eliminare la sessione: contiene appelli già prenotati dai docenti.',
+      );
+    }
     return this.sessionsRepo.delete(id);
   }
 

@@ -9,9 +9,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import { isWeekend } from './common/date.util';
 import { Appelli } from './entities/appelli.entity';
+import { CourseYear } from './entities/course-year.entity';
 import { ExamSession } from './entities/exam-session.entity';
 import { CreateAppelliDto } from './dto/create-appelli.dto';
 import { UpdateAppelliDto } from './dto/update-appelli.dto';
+import { HolidaysService } from './holidays.service';
 
 @Injectable()
 export class AppelliService {
@@ -20,9 +22,13 @@ export class AppelliService {
     private readonly appelliRepository: Repository<Appelli>,
     @InjectRepository(ExamSession)
     private readonly examSessionRepository: Repository<ExamSession>,
+    @InjectRepository(CourseYear)
+    private readonly courseYearRepository: Repository<CourseYear>,
+    private readonly holidaysService: HolidaysService,
   ) {}
 
   async create(dto: CreateAppelliDto, docenteId: string): Promise<Appelli> {
+    await this.assertOwnCourseYear(dto.courseYearId, docenteId);
     await this.validateBooking(dto.examSessionId, dto.courseYearId, dto.date);
     await this.assertDateFree(dto.courseYearId, dto.date);
 
@@ -83,6 +89,7 @@ export class AppelliService {
     const courseYearId = dto.courseYearId ?? appello.courseYearId;
     const date = dto.date ?? appello.date;
 
+    await this.assertOwnCourseYear(courseYearId, docenteId);
     await this.validateBooking(examSessionId, courseYearId, date);
     await this.assertDateFree(courseYearId, date, id);
 
@@ -160,6 +167,11 @@ export class AppelliService {
       throw new BadRequestException('Non è possibile inserire un appello di sabato o domenica');
     }
 
+    const holidays = await this.holidaysService.getDateSet();
+    if (holidays.has(date)) {
+      throw new BadRequestException('Non è possibile inserire un appello in un giorno festivo');
+    }
+
     const belongsToSession = session.courseYears?.some(
       (courseYear) => courseYear.id === courseYearId,
     );
@@ -170,6 +182,18 @@ export class AppelliService {
     }
 
     return session;
+  }
+
+  private async assertOwnCourseYear(courseYearId: number, docenteId: string): Promise<void> {
+    const courseYear = await this.courseYearRepository.findOne({ where: { id: courseYearId } });
+    if (!courseYear) {
+      throw new NotFoundException('Corso di laurea/anno di frequenza non trovato');
+    }
+    if (courseYear.docenteId !== docenteId) {
+      throw new ForbiddenException(
+        'Puoi inserire appelli solo per i corsi/anni di cui sei titolare',
+      );
+    }
   }
 
   private async assertDateFree(

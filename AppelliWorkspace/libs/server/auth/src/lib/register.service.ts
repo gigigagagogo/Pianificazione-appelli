@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { User, UsersService } from '@server/users';
+import { User, UserRole, UsersService } from '@server/users';
 import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
@@ -15,12 +15,14 @@ export class RegisterService {
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
+    // La registrazione pubblica crea solo docenti: gli account segreteria
+    // vengono creati dal seed o da un'altra segreteria.
     const user = await this.usersService.create(
       dto.name,
       dto.surname,
       dto.email,
       hashedPassword,
-      dto.role,
+      UserRole.DOCENTE,
     );
 
     const { password: _password, ...safeUser } = user;

@@ -2,7 +2,7 @@ import { useState, SubmitEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../shared/auth-layout';
 import { inputClass, labelClass } from '../shared/form-styles';
-import { ApiError, registerUser, Role } from '../shared/api';
+import { ApiError, registerUser } from '../shared/api';
 import { EyeIcon, EyeOffIcon } from '../shared/icons';
 
 const RegisterPage = () => {
@@ -13,7 +13,6 @@ const RegisterPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState<Role | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -24,14 +23,9 @@ const RegisterPage = () => {
     event.preventDefault();
     setError(null);
 
-    if (!role) {
-      setError('Seleziona un ruolo');
-      return;
-    }
-
     setSubmitting(true);
     try {
-      await registerUser({ name, surname, email, password, role });
+      await registerUser({ name, surname, email, password });
       navigate('/');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
@@ -110,32 +104,6 @@ const RegisterPage = () => {
             >
               {showPassword ? <EyeOffIcon /> : <EyeIcon />}
             </span>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <span className={labelClass}>Ruolo</span>
-          <div className="flex gap-6">
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                id="role-docente"
-                name="role"
-                checked={role === 'docente'}
-                onChange={() => setRole(role === 'docente' ? null : 'docente')}
-              />
-              Docente
-            </label>
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                id="role-segreteria"
-                name="role"
-                checked={role === 'segreteria'}
-                onChange={() => setRole(role === 'segreteria' ? null : 'segreteria')}
-              />
-              Segreteria
-            </label>
           </div>
         </div>
 

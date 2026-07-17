@@ -12,30 +12,30 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { JwtAuthGuard } from '@server/security';
+import { JwtAuthGuard, RolesGuard, Roles } from '@server/security';
+import { UserRole } from '@server/users';
 import { JwtPayload } from '@server/auth';
 import { AppelliService } from './appelli.service';
 import { CreateAppelliDto } from './dto/create-appelli.dto';
 import { UpdateAppelliDto } from './dto/update-appelli.dto';
 
 @Controller('appelli')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class AppelliController {
   constructor(private readonly appelliService: AppelliService) {}
 
-  @UseGuards(JwtAuthGuard)
   @Post()
+  @Roles(UserRole.DOCENTE)
   create(@Body() createAppelliDto: CreateAppelliDto, @Req() req: Request) {
     const docente = req.user as JwtPayload;
     return this.appelliService.create(createAppelliDto, docente.sub);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get()
   findAll() {
     return this.appelliService.findAll();
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('mine')
   findMine(@Req() req: Request) {
     const docente = req.user as JwtPayload;
@@ -47,8 +47,8 @@ export class AppelliController {
     return this.appelliService.findOne(+id);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Patch(':id')
+  @Roles(UserRole.DOCENTE)
   update(
     @Param('id') id: string,
     @Body() updateAppelliDto: UpdateAppelliDto,
@@ -58,9 +58,9 @@ export class AppelliController {
     return this.appelliService.update(+id, updateAppelliDto, docente.sub);
   }
 
-  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(':id')
+  @Roles(UserRole.DOCENTE)
   remove(@Param('id') id: string, @Req() req: Request) {
     const docente = req.user as JwtPayload;
     return this.appelliService.remove(+id, docente.sub);
