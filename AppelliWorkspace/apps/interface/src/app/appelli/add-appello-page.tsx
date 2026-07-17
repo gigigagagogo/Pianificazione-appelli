@@ -309,6 +309,10 @@ const AddAppelloPage = () => {
               <span className="flex items-center gap-1.5">
                 <span className="h-3 w-3 rounded bg-red-400" /> Occupata da un collega
               </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded bg-amber-100 ring-1 ring-inset ring-amber-300" />{' '}
+                Festività (passa il mouse per il motivo)
+              </span>
             </div>
 
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -329,19 +333,29 @@ const AddAppelloPage = () => {
                           type="button"
                           onClick={() => handleDayClick(day)}
                           disabled={!day.available}
-                          title={day.docente ?? ''}
+                          title={
+                            day.holiday
+                              ? `Festività: ${day.holiday}`
+                              : day.mine
+                                ? 'Tuo appello'
+                                : day.docente
+                                  ? `Occupata da ${day.docente}`
+                                  : ''
+                          }
                           className={`flex h-20 flex-col items-center justify-center gap-1 text-sm transition-colors ${
                             day.mine
                               ? 'cursor-not-allowed bg-green-500 font-semibold text-white'
-                              : !day.available
-                                ? 'cursor-not-allowed bg-red-100 text-red-700'
-                                : 'text-gray-700 hover:bg-indigo-50'
+                              : day.holiday
+                                ? 'cursor-not-allowed bg-amber-100 text-amber-800'
+                                : !day.available
+                                  ? 'cursor-not-allowed bg-red-100 text-red-700'
+                                  : 'text-gray-700 hover:bg-indigo-50'
                           }`}
                         >
                           <span>{day.date.slice(-2)}</span>
                           {!day.available && (
                             <span className="max-w-full truncate px-1 text-[11px]">
-                              {day.mine ? 'Tuo' : day.docente}
+                              {day.mine ? 'Tuo' : day.holiday ? 'Festività' : day.docente}
                             </span>
                           )}
                         </button>

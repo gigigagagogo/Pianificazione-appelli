@@ -35,6 +35,13 @@ export class HolidaysService {
     return new Set(all.map((h) => h.date));
   }
 
+  // Mappa data → descrizione, per poter mostrare al docente il motivo per cui
+  // un giorno festivo non è prenotabile (non solo escluderlo dal calendario).
+  async getDateMap(): Promise<Map<string, string>> {
+    const all = await this.holidaysRepo.find();
+    return new Map(all.map((h) => [h.date, h.description]));
+  }
+
   findAll(): Promise<Holiday[]> {
     return this.holidaysRepo.find({ order: { date: 'ASC' } });
   }

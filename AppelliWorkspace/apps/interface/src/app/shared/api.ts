@@ -172,6 +172,7 @@ export interface CalendarDay {
   appelloId?: number;
   mine?: boolean;
   docente?: string;
+  holiday?: string; // descrizione della festività, se il giorno è festivo
 }
 
 export interface CalendarResponse {

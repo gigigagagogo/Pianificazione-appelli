@@ -177,11 +177,18 @@ export class SessionsService {
     const submissionWindowOpen =
       now >= session.submissionStartDate && now <= session.submissionEndDate;
 
-    const holidays = await this.holidaysService.getDateSet();
+    const holidays = await this.holidaysService.getDateMap();
 
+    // I weekend restano esclusi (la griglia del calendario è Lun-Ven), mentre i
+    // festivi vengono mostrati come non prenotabili con la loro descrizione, così
+    // il docente capisce perché quel giorno non è selezionabile.
     const days = allDates
-      .filter((date) => !isWeekend(date) && !holidays.has(date))
+      .filter((date) => !isWeekend(date))
       .map((date) => {
+        const holiday = holidays.get(date);
+        if (holiday !== undefined) {
+          return { date, available: false, holiday };
+        }
         const booking = bookingByDate.get(date);
         if (!booking) {
           return { date, available: true };
