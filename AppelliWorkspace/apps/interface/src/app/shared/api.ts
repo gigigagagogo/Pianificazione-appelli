@@ -256,6 +256,33 @@ export function updateCourseYear(id: number, payload: UpdateCourseYearPayload) {
   return patch<CourseYear>(`/courses/years/${id}`, payload);
 }
 
+export interface Holiday {
+  id: number;
+  date: string;
+  description: string;
+}
+
+export function getHolidays() {
+  return get<Holiday[]>('/holidays');
+}
+
+export interface CreateHolidayPayload {
+  date: string;
+  description: string;
+}
+
+export function createHoliday(payload: CreateHolidayPayload) {
+  return post<Holiday>('/holidays', payload);
+}
+
+export function updateHoliday(id: number, payload: Partial<CreateHolidayPayload>) {
+  return patch<Holiday>(`/holidays/${id}`, payload);
+}
+
+export function deleteHoliday(id: number) {
+  return del<void>(`/holidays/${id}`);
+}
+
 export interface UpdateSessionPayload {
   name?: string;
   sessionStartDate?: string;

@@ -12,6 +12,7 @@ import { SessionsController } from './sessions.controller';
 import { SessionsService } from './sessions.service';
 import { AppelliController } from './appelli.controller';
 import { AppelliService } from './appelli.service';
+import { HolidaysController } from './holidays.controller';
 import { HolidaysService } from './holidays.service';
 
 @Module({
@@ -19,7 +20,7 @@ import { HolidaysService } from './holidays.service';
     TypeOrmModule.forFeature([Course, CourseYear, ExamSession, Appelli, Holiday]),
     UsersModule,
   ],
-  controllers: [CoursesController, SessionsController, AppelliController],
+  controllers: [CoursesController, SessionsController, AppelliController, HolidaysController],
   providers: [CoursesService, SessionsService, AppelliService, HolidaysService],
 })
 export class ExamsPlanningModule {}

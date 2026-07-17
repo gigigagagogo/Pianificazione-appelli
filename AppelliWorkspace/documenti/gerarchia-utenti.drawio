@@ -1,0 +1,58 @@
+<mxfile host="app.diagrams.net" agent="claude-code" pages="2">
+  <diagram name="Gerarchia utenti" id="gerarchia-utenti-appelli">
+    <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <!-- User (radice) -->
+        <mxCell id="user" value="User" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="40" width="40" height="70" as="geometry" />
+        </mxCell>
+        <!-- Utente Registrato -->
+        <mxCell id="registrato" value="Utente Registrato" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;html=1;outlineConnect=0;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="240" y="220" width="40" height="70" as="geometry" />
+        </mxCell>
+        <!-- Utente Non Registrato -->
+        <mxCell id="nonregistrato" value="Utente Non Registrato" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;html=1;outlineConnect=0;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="540" y="220" width="40" height="70" as="geometry" />
+        </mxCell>
+        <!-- Docente -->
+        <mxCell id="docente" value="Docente" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;html=1;outlineConnect=0;fontSize=13;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="140" y="400" width="40" height="70" as="geometry" />
+        </mxCell>
+        <!-- Segreteria -->
+        <mxCell id="segreteria" value="Segreteria" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;html=1;outlineConnect=0;fontSize=13;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="340" y="400" width="40" height="70" as="geometry" />
+        </mxCell>
+        <!-- Generalizzazione: Registrato -> User -->
+        <mxCell id="e1" style="endArrow=block;endFill=0;endSize=16;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="registrato" target="user">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <!-- Generalizzazione: Non Registrato -> User -->
+        <mxCell id="e2" style="endArrow=block;endFill=0;endSize=16;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="nonregistrato" target="user">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <!-- Generalizzazione: Docente -> Registrato -->
+        <mxCell id="e3" style="endArrow=block;endFill=0;endSize=16;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="docente" target="registrato">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <!-- Generalizzazione: Segreteria -> Registrato -->
+        <mxCell id="e4" style="endArrow=block;endFill=0;endSize=16;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="segreteria" target="registrato">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <!-- Nota: cosa può fare l'utente non registrato -->
+        <mxCell id="note1" value="Può solo effettuare login o registrazione" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="500" y="310" width="180" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="E-aW8-HYbyoQYKmtXQ3m" name="Pagina-2">
+    <mxGraphModel dx="992" dy="527" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

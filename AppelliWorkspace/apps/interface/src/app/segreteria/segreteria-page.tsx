@@ -9,21 +9,26 @@ import {
   CourseYear,
   Docente,
   ExamSession,
+  Holiday,
   createCourse,
   createCourseYear,
+  createHoliday,
   createSession,
   deleteCourse,
   deleteCourseYear,
+  deleteHoliday,
   getCourses,
   getCourseYears,
   getDocenti,
+  getHolidays,
   getSessions,
   updateCourse,
   updateCourseYear,
+  updateHoliday,
   updateSession,
 } from '../shared/api';
 
-type Section = 'courses' | 'years' | 'sessions';
+type Section = 'courses' | 'years' | 'sessions' | 'holidays';
 
 // Converte il timestamp UTC del server nei componenti dell'ora locale,
 // nel formato accettato dagli input datetime-local.
@@ -42,6 +47,7 @@ const SegreteriaPage = () => {
   const [courseYears, setCourseYears] = useState<CourseYear[]>([]);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
   const [docenti, setDocenti] = useState<Docente[]>([]);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,14 +55,17 @@ const SegreteriaPage = () => {
 const [courseFormError, setCourseFormError] = useState<string | null>(null);
 const [yearFormError, setYearFormError] = useState<string | null>(null);
 const [sessionFormError, setSessionFormError] = useState<string | null>(null);
+const [holidayFormError, setHolidayFormError] = useState<string | null>(null);
 
   const [courseModalOpen, setCourseModalOpen] = useState(false);
   const [yearModalOpen, setYearModalOpen] = useState(false);
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
+  const [holidayModalOpen, setHolidayModalOpen] = useState(false);
 
   const [editingCourseId, setEditingCourseId] = useState<number | null>(null);
   const [editingYearId, setEditingYearId] = useState<number | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
+  const [editingHolidayId, setEditingHolidayId] = useState<number | null>(null);
 
   const [courseCode, setCourseCode] = useState('');
   const [courseName, setCourseName] = useState('');
@@ -65,6 +74,9 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
   const [yearNumber, setYearNumber] = useState(1);
   const [yearLabel, setYearLabel] = useState('');
   const [yearDocenteId, setYearDocenteId] = useState('');
+
+  const [holidayDate, setHolidayDate] = useState('');
+  const [holidayDescription, setHolidayDescription] = useState('');
 
   const [sessionName, setSessionName] = useState('');
   const [sessionStartDate, setSessionStartDate] = useState('');
@@ -85,16 +97,18 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
 
   const reloadAll = async () => {
     try {
-      const [c, y, s, d] = await Promise.all([
+      const [c, y, s, d, h] = await Promise.all([
         getCourses(),
         getCourseYears(),
         getSessions(),
         getDocenti(),
+        getHolidays(),
       ]);
       setCourses(c);
       setCourseYears(y);
       setSessions(s);
       setDocenti(d);
+      setHolidays(h);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
     } finally {
@@ -240,6 +254,62 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
     }
   };
 
+  // --- Festività ---
+  const resetHolidayForm = () => {
+    setEditingHolidayId(null);
+    setHolidayDate('');
+    setHolidayDescription('');
+    setHolidayFormError(null);
+  };
+
+  const openNewHoliday = () => {
+    resetHolidayForm();
+    setHolidayModalOpen(true);
+  };
+
+  const openEditHoliday = (h: Holiday) => {
+    setEditingHolidayId(h.id);
+    setHolidayDate(h.date);
+    setHolidayDescription(h.description);
+    setHolidayModalOpen(true);
+  };
+
+  const handleSubmitHoliday = async (e: FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+    setHolidayFormError(null);
+    try {
+      if (editingHolidayId !== null) {
+        await updateHoliday(editingHolidayId, {
+          date: holidayDate,
+          description: holidayDescription,
+        });
+        setMessage('Festività modificata.');
+      } else {
+        await createHoliday({ date: holidayDate, description: holidayDescription });
+        setMessage('Festività creata.');
+      }
+      resetHolidayForm();
+      setHolidayModalOpen(false);
+      await reloadAll();
+    } catch (err) {
+      setHolidayFormError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
+    }
+  };
+
+  const handleDeleteHoliday = async (h: Holiday) => {
+    if (!window.confirm(`Vuoi eliminare la festività "${h.description}" del ${h.date}?`)) return;
+    setMessage(null);
+    setError(null);
+    try {
+      await deleteHoliday(h.id);
+      setMessage('Festività eliminata.');
+      await reloadAll();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
+    }
+  };
+
   // --- Sessioni ---
   const toggleYear = (id: number) => {
     setSelectedYearIds((prev) =>
@@ -312,6 +382,7 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
     { key: 'courses', label: 'Corsi di laurea', active: section === 'courses', onClick: () => setSection('courses') },
     { key: 'years', label: 'Anni di frequenza', active: section === 'years', onClick: () => setSection('years') },
     { key: 'sessions', label: "Sessioni d'esame", active: section === 'sessions', onClick: () => setSection('sessions') },
+    { key: 'holidays', label: 'Festività', active: section === 'holidays', onClick: () => setSection('holidays') },
   ];
 
   return (
@@ -545,6 +616,65 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
                 </table>
               </section>
             )}
+            {section === 'holidays' && (
+              <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">Festività</h2>
+                  <button
+                    type="button"
+                    onClick={openNewHoliday}
+                    className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                  >
+                    Nuova festività
+                  </button>
+                </div>
+                <p className="mb-4 text-sm text-gray-500">
+                  Nei giorni festivi (oltre a sabato e domenica) i docenti non possono fissare appelli.
+                </p>
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 text-xs uppercase text-gray-500">
+                      <th className="py-2">Data</th>
+                      <th className="py-2">Descrizione</th>
+                      <th className="py-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {holidays.map((h) => (
+                      <tr key={h.id}>
+                        <td className="py-2 font-medium text-gray-900">{h.date}</td>
+                        <td className="py-2 text-gray-700">{h.description}</td>
+                        <td className="py-2 text-right">
+                          <div className="flex justify-end gap-4">
+                            <button
+                              type="button"
+                              onClick={() => openEditHoliday(h)}
+                              className="text-sm font-medium text-indigo-600 hover:underline"
+                            >
+                              Modifica
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteHoliday(h)}
+                              className="text-sm font-medium text-red-600 hover:underline"
+                            >
+                              Elimina
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {holidays.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="py-6 text-center text-gray-400">
+                          Nessuna festività ancora inserita.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </section>
+            )}
           </>
         )}
       </SidebarLayout>
@@ -662,6 +792,49 @@ const [sessionFormError, setSessionFormError] = useState<string | null>(null);
             className="mt-2 self-start rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
           >
             {editingYearId !== null ? 'Salva modifiche' : 'Crea'}
+          </button>
+        </form>
+      </Modal>
+
+      <Modal
+        open={holidayModalOpen}
+        title={editingHolidayId !== null ? 'Modifica festività' : 'Nuova festività'}
+        onClose={() => {
+          resetHolidayForm();
+          setHolidayModalOpen(false);
+        }}
+      >
+        {holidayFormError && (
+          <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+            {holidayFormError}
+          </p>
+        )}
+        <form onSubmit={handleSubmitHoliday} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>Data</label>
+            <input
+              type="date"
+              className={inputClass}
+              value={holidayDate}
+              onChange={(e) => setHolidayDate(e.target.value)}
+              required
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>Descrizione</label>
+            <input
+              className={inputClass}
+              value={holidayDescription}
+              onChange={(e) => setHolidayDescription(e.target.value)}
+              placeholder="es. Festa della Repubblica"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="mt-2 self-start rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            {editingHolidayId !== null ? 'Salva modifiche' : 'Crea'}
           </button>
         </form>
       </Modal>
