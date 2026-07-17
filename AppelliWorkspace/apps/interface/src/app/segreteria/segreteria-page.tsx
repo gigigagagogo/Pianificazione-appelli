@@ -221,7 +221,7 @@ const [holidayFormError, setHolidayFormError] = useState<string | null>(null);
           courseId: Number(yearCourseId),
           yearNumber,
           label: yearLabel,
-          docenteId: yearDocenteId || undefined,
+          docenteId: yearDocenteId || null,
         });
         setMessage('Anno di frequenza modificato.');
       } else {
@@ -229,7 +229,7 @@ const [holidayFormError, setHolidayFormError] = useState<string | null>(null);
           courseId: Number(yearCourseId),
           yearNumber,
           label: yearLabel,
-          docenteId: yearDocenteId || undefined,
+          docenteId: yearDocenteId || null,
         });
         setMessage('Anno di frequenza creato.');
       }

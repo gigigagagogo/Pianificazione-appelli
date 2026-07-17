@@ -1,6 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { UserRole, UsersService } from '@server/users';
 import { Course } from './entities/course.entity';
 import { CourseYear } from './entities/course-year.entity';
@@ -25,9 +30,13 @@ export class CoursesService {
     private readonly usersService: UsersService,
   ) {}
 
-  createCourse(dto: CreateCourseDto) {
+  async createCourse(dto: CreateCourseDto) {
     const course = this.coursesRepo.create(dto);
-    return this.coursesRepo.save(course);
+    try {
+      return await this.coursesRepo.save(course);
+    } catch (error) {
+      throw this.mapUniqueViolation(error, 'course');
+    }
   }
 
   async createYear(dto: CreateCourseYearDto) {
@@ -37,7 +46,11 @@ export class CoursesService {
     }
     await this.assertValidDocente(dto.docenteId);
     const year = this.courseYearsRepo.create(dto);
-    return this.courseYearsRepo.save(year);
+    try {
+      return await this.courseYearsRepo.save(year);
+    } catch (error) {
+      throw this.mapUniqueViolation(error, 'year');
+    }
   }
 
   findAllCourses() {
@@ -77,7 +90,11 @@ export class CoursesService {
       throw new NotFoundException(`Corso con id ${id} non trovato.`);
     }
     Object.assign(course, dto);
-    return this.coursesRepo.save(course);
+    try {
+      return await this.coursesRepo.save(course);
+    } catch (error) {
+      throw this.mapUniqueViolation(error, 'course');
+    }
   }
 
   async updateYear(id: number, dto: UpdateCourseYearDto) {
@@ -95,7 +112,11 @@ export class CoursesService {
       await this.assertValidDocente(dto.docenteId);
     }
     Object.assign(year, dto);
-    return this.courseYearsRepo.save(year);
+    try {
+      return await this.courseYearsRepo.save(year);
+    } catch (error) {
+      throw this.mapUniqueViolation(error, 'year');
+    }
   }
 
   async deleteCourse(id: number): Promise<void> {
@@ -135,6 +156,21 @@ export class CoursesService {
     }
 
     await this.courseYearsRepo.remove(year);
+  }
+
+  // Traduce la violazione del vincolo unique (Postgres 23505) in un 409 con messaggio
+  // in italiano, invece di lasciarla esplodere come 500 "Errore imprevisto".
+  private mapUniqueViolation(error: unknown, entity: 'course' | 'year'): Error {
+    const code = (error as { driverError?: { code?: string }; code?: string })?.driverError?.code
+      ?? (error as { code?: string })?.code;
+    if (error instanceof QueryFailedError && code === '23505') {
+      return new ConflictException(
+        entity === 'course'
+          ? 'Esiste già un corso di laurea con questo codice.'
+          : 'Esiste già un anno di frequenza con questa etichetta.',
+      );
+    }
+    return error as Error;
   }
 
   private async assertValidDocente(docenteId?: string): Promise<void> {

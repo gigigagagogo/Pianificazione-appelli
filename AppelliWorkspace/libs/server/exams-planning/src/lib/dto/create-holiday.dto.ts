@@ -1,7 +1,8 @@
-import { IsDateString, IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString, Matches } from 'class-validator';
+import { ISO_DATE_REGEX } from '../common/date.util';
 
 export class CreateHolidayDto {
-  @IsDateString({}, { message: 'La data deve essere nel formato AAAA-MM-GG.' })
+  @Matches(ISO_DATE_REGEX, { message: 'La data deve essere nel formato AAAA-MM-GG.' })
   date!: string;
 
   @IsString({ message: 'La descrizione deve essere un testo.' })

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Not, Repository } from 'typeorm';
+import { In, LessThan, MoreThan, Not, Repository } from 'typeorm';
 import { enumerateDates, isWeekend } from './common/date.util';
 import { CourseYear } from './entities/course-year.entity';
 import { Appelli } from './entities/appelli.entity';
@@ -80,6 +80,22 @@ export class SessionsService {
       session.submissionStartDate,
       session.submissionEndDate,
     );
+
+    // Se si stringe il periodo della sessione, non deve restare fuori nessun appello
+    // già prenotato (altrimenti sparirebbe dal calendario ma resterebbe nel DB).
+    if (dto.sessionStartDate !== undefined || dto.sessionEndDate !== undefined) {
+      const outOfRange = await this.appelliRepo.count({
+        where: [
+          { examSession: { id }, date: LessThan(session.sessionStartDate) },
+          { examSession: { id }, date: MoreThan(session.sessionEndDate) },
+        ],
+      });
+      if (outOfRange > 0) {
+        throw new BadRequestException(
+          'Impossibile modificare il periodo della sessione: esistono appelli già prenotati fuori dal nuovo intervallo di date.',
+        );
+      }
+    }
 
     if (dto.courseYearIds !== undefined) {
       const courseYears = await this.yearsRepo.find({

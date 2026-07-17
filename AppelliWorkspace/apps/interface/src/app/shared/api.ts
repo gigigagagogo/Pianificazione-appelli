@@ -208,7 +208,7 @@ export interface CreateCourseYearPayload {
   courseId: number;
   yearNumber: number;
   label: string;
-  docenteId?: string;
+  docenteId?: string | null;
 }
 
 export function createCourseYear(payload: CreateCourseYearPayload) {
@@ -249,7 +249,7 @@ export interface UpdateCourseYearPayload {
   courseId?: number;
   yearNumber?: number;
   label?: string;
-  docenteId?: string;
+  docenteId?: string | null;
 }
 
 export function updateCourseYear(id: number, payload: UpdateCourseYearPayload) {

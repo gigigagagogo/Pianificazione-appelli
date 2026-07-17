@@ -1,7 +1,8 @@
-import { IsDateString, IsInt } from 'class-validator';
+import { IsInt, Matches } from 'class-validator';
+import { ISO_DATE_REGEX } from '../common/date.util';
 
 export class CreateAppelliDto {
-  @IsDateString()
+  @Matches(ISO_DATE_REGEX, { message: 'La data deve essere nel formato AAAA-MM-GG.' })
   date!: string;
 
   @IsInt()

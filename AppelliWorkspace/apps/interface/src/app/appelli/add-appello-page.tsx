@@ -41,15 +41,18 @@ function buildWeeks(days: CalendarDay[]): (CalendarDay | null)[][] {
 
   days.forEach((day) => {
     const weekday = new Date(`${day.date}T00:00:00Z`).getUTCDay(); // 1..5 (lun-ven)
-    const col = weekday - 1;
+    const col = weekday - 1; // 0..4 (Lun..Ven)
 
-    if (currentWeek.length === 0) {
-      currentWeek = Array(col).fill(null);
-    } else if (col === 0) {
+    // Lunedì (col 0) chiude la settimana in corso e ne apre una nuova.
+    if (col === 0 && currentWeek.length > 0) {
       while (currentWeek.length < 5) currentWeek.push(null);
       weeks.push(currentWeek);
       currentWeek = [];
     }
+    // Riempie con celle vuote fino alla colonna giusta: gestisce sia l'inizio
+    // settimana sia i "buchi" infrasettimanali (giorni festivi esclusi dal server),
+    // così ogni giorno resta allineato sotto la sua colonna.
+    while (currentWeek.length < col) currentWeek.push(null);
     currentWeek.push(day);
   });
 

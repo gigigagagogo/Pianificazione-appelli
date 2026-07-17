@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Holiday } from './entities/holiday.entity';
+import { Appelli } from './entities/appelli.entity';
 import { CreateHolidayDto } from './dto/create-holiday.dto';
 import { UpdateHolidayDto } from './dto/update-holiday.dto';
 
@@ -14,7 +15,20 @@ export class HolidaysService {
   constructor(
     @InjectRepository(Holiday)
     private readonly holidaysRepo: Repository<Holiday>,
+    @InjectRepository(Appelli)
+    private readonly appelliRepo: Repository<Appelli>,
   ) {}
+
+  // Una festività su una data con appelli già prenotati li farebbe sparire dal
+  // calendario lasciandoli però nel DB: la blocchiamo con un messaggio chiaro.
+  private async assertNoAppelliOn(date: string): Promise<void> {
+    const count = await this.appelliRepo.count({ where: { date } });
+    if (count > 0) {
+      throw new BadRequestException(
+        `Impossibile impostare la festività: esistono già ${count} appelli prenotati in data ${date}.`,
+      );
+    }
+  }
 
   async getDateSet(): Promise<Set<string>> {
     const all = await this.holidaysRepo.find();
@@ -32,6 +46,7 @@ export class HolidaysService {
         `Esiste già una festività in data ${dto.date} (${existing.description}).`,
       );
     }
+    await this.assertNoAppelliOn(dto.date);
     const holiday = this.holidaysRepo.create(dto);
     return this.holidaysRepo.save(holiday);
   }
@@ -48,6 +63,7 @@ export class HolidaysService {
           `Esiste già una festività in data ${dto.date} (${existing.description}).`,
         );
       }
+      await this.assertNoAppelliOn(dto.date);
     }
     Object.assign(holiday, dto);
     return this.holidaysRepo.save(holiday);
