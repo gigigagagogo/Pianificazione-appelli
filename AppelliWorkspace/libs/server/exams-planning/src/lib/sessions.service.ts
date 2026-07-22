@@ -147,7 +147,9 @@ export class SessionsService {
       );
     }
   }
-
+  // Restituisce il calendario della sessione per il corso/anno selezionato, con le informazioni
+  // sugli appelli già prenotati e sui giorni festivi. I weekend non vengono restituiti perché la
+  // griglia del calendario è Lun-Ven.
   async calendar(sessionId: number, courseYearId: number, docenteId: string) {
     const session = await this.sessionsRepo.findOne({
       where: { id: sessionId },
@@ -156,6 +158,8 @@ export class SessionsService {
     if (!session) {
       throw new NotFoundException('Sessione non trovata.');
     }
+    // Controlla che il corso/anno sia abilitato per questa sessione. Se non lo è, non ha senso
+    // restituire il calendario perché il docente non può prenotare appelli in questa sessione.
     const isEnabled = session.courseYears?.some((y) => y.id === courseYearId);
     if (!isEnabled) {
       throw new NotFoundException(
@@ -183,7 +187,9 @@ export class SessionsService {
     // festivi vengono mostrati come non prenotabili con la loro descrizione, così
     // il docente capisce perché quel giorno non è selezionabile.
     const days = allDates
+      // esclude i weekend perché la griglia del calendario è Lun-Ven
       .filter((date) => !isWeekend(date))
+      // Scartiamo le festività e gli appelli già prenotati, ma li restituiamo come non disponibili con le informazioni
       .map((date) => {
         const holiday = holidays.get(date);
         if (holiday !== undefined) {

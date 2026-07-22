@@ -5,7 +5,8 @@ export class ApiError extends Error {
     super(message);
   }
 }
-
+// Client HTTP centralizzato: aggiunge base URL, token di autenticazione e Content-Type,
+// e converte le risposte non-ok in ApiError così i chiamanti possono usare try/catch.
 async function request<T>(
   path: string,
   options: { method?: string; body?: unknown } = {},

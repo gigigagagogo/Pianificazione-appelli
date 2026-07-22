@@ -116,6 +116,8 @@ const AddAppelloPage = () => {
       .finally(() => setLoadingCalendar(false));
   };
 
+
+  // Carica il calendario quando si selezionano sessione e corso/anno. Se uno dei due viene deselezionato, cancella il calendario e la vista mese.
   useEffect(() => {
     if (sessionId !== '' && courseYearId !== '') {
       loadCalendar(sessionId, courseYearId, true);
