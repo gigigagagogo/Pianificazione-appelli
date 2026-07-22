@@ -22,6 +22,7 @@ export function App() {
           </ProtectedRoute>
         }
       />
+      
       <Route
         path="/appelli/nuovo"
         element={

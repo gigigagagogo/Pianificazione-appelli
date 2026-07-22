@@ -167,13 +167,15 @@ export class SessionsService {
       );
     }
 
-    // Il vincolo di unicità è su (courseYear, date) a prescindere dalla sessione,
-    // quindi il calendario deve considerare le prenotazioni di questo corso/anno
-    // in qualunque sessione, non solo in quella che si sta visualizzando.
+    // carichiamo tutte le prenotazioni di appelli per questo corso/anno, 
+    // così da poterle mostrare nel calendario e indicare quali giorni sono già occupati.
     const bookings = await this.appelliRepo.find({
       where: { courseYearId },
       relations: ['docente'],
     });
+
+    // Creiamo una mappa per accedere rapidamente alle prenotazioni per data, così da poterle
+    // mostrare nel calendario senza dover fare una ricerca lineare ogni volta.
     const bookingByDate = new Map(bookings.map((booking) => [booking.date, booking]));
 
     const allDates = enumerateDates(session.sessionStartDate, session.sessionEndDate);
@@ -197,14 +199,14 @@ export class SessionsService {
         }
         const booking = bookingByDate.get(date);
         if (!booking) {
-          return { date, available: true };
+          return { date, available: true }; // giorno libero, prenotabile
         }
         return {
           date,
           available: false,
           appelloId: booking.id,
-          mine: booking.docenteId === docenteId,
-          docente: `${booking.docente.name} ${booking.docente.surname}`,
+          mine: booking.docenteId === docenteId, // verde se è il docente che sta guardando il calendario, rosso altrimenti
+          docente: `${booking.docente.name} ${booking.docente.surname}`, // nome del docente che ha prenotato l'appello
         };
       });
 
