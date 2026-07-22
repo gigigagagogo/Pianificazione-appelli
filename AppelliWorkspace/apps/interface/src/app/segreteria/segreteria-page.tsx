@@ -38,6 +38,26 @@ const toDatetimeLocal = (iso: string) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+const ROMAN_NUMERALS: [number, string][] = [
+  [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
+  [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
+  [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+];
+
+// Converte un numero anno (1, 2, 3...) nel numero romano corrispondente (I, II, III...).
+const toRoman = (num: number): string => {
+  if (!Number.isInteger(num) || num < 1) return '';
+  let n = num;
+  let result = '';
+  for (const [value, symbol] of ROMAN_NUMERALS) {
+    while (n >= value) {
+      result += symbol;
+      n -= value;
+    }
+  }
+  return result;
+};
+
 const SegreteriaPage = () => {
   const navigate = useNavigate();
 
@@ -206,6 +226,17 @@ const [holidayFormError, setHolidayFormError] = useState<string | null>(null);
     setYearDocenteId(y.docenteId ?? '');
     setYearModalOpen(true);
   };
+
+  // Etichetta automatica: codice del corso + numero anno in romano (es. INFTL-II).
+  useEffect(() => {
+    if (!yearCourseId) {
+      setYearLabel('');
+      return;
+    }
+    const course = courses.find((c) => c.id === Number(yearCourseId));
+    if (!course) return;
+    setYearLabel(`${course.code}-${toRoman(yearNumber)}`);
+  }, [yearCourseId, yearNumber, courses]);
 
   const handleSubmitYear = async (e: FormEvent) => {
     e.preventDefault();
@@ -765,12 +796,15 @@ const [holidayFormError, setHolidayFormError] = useState<string | null>(null);
           <div className="flex flex-col gap-1">
             <label className={labelClass}>Etichetta</label>
             <input
-              className={inputClass}
+              className={`${inputClass} cursor-not-allowed bg-gray-50 text-gray-500`}
               value={yearLabel}
-              onChange={(e) => setYearLabel(e.target.value)}
-              placeholder="es. INFLM-I"
+              readOnly
+              placeholder="-- seleziona corso e numero anno --"
               required
             />
+            <p className="text-xs text-gray-400">
+              Generata automaticamente da codice del corso e numero anno.
+            </p>
           </div>
           <div className="flex flex-col gap-1">
             <label className={labelClass}>Docente titolare</label>
