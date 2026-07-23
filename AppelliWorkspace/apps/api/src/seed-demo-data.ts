@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
-import { Course, CourseYear, ExamSession } from '@server/exams-planning';
+import { Course, CourseYear, ExamSession, Materia } from '@server/exams-planning';
 import { User, UserRole } from '@server/users';
 
 const DEMO_PASSWORD = 'Password123!';
@@ -73,6 +73,17 @@ const COURSES: CourseSeed[] = [
   },
 ];
 
+// Materie per anno di frequenza (chiave = label del CourseYear). Ogni anno è già legato
+// a corso + docente, quindi queste sono le materie di quel prof per quel corso/anno.
+const MATERIE_BY_YEAR: Record<string, string[]> = {
+  'INFTL-I': ['Analisi Matematica 1', 'Programmazione 1', 'Fondamenti di Informatica'],
+  'INFTL-II': ['Basi di Dati', 'Reti di Calcolatori', 'Sistemi Operativi'],
+  'INFLM-I': ['Machine Learning', 'Ingegneria del Software Avanzata'],
+  'MATTL-I': ['Algebra Lineare', 'Analisi Matematica 1'],
+  'ECOTL-I': ['Economia Politica', 'Ragioneria Generale'],
+  'FISTL-I': ['Fisica Generale 1', 'Meccanica Razionale'],
+};
+
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
@@ -91,7 +102,7 @@ async function seedDemoData() {
     username: process.env['PGUSER'] || 'appelli',
     password: process.env['PGPASSWORD'] || 'appelli',
     database: process.env['PGDATABASE'] || 'appelli',
-    entities: [Course, CourseYear, ExamSession, User],
+    entities: [Course, CourseYear, ExamSession, User, Materia],
     synchronize: true,
   });
 
@@ -102,6 +113,7 @@ async function seedDemoData() {
   const yearRepo = dataSource.getRepository(CourseYear);
   const sessionRepo = dataSource.getRepository(ExamSession);
   const userRepo = dataSource.getRepository(User);
+  const materiaRepo = dataSource.getRepository(Materia);
 
   // --- Utenti: docenti + segreteria ---
   const hashedPassword = await bcrypt.hash(DEMO_PASSWORD, 10);
@@ -159,6 +171,20 @@ async function seedDemoData() {
         console.log(`  Anno già presente: ${y.label}`);
       }
       allCreatedYears.push(year);
+    }
+  }
+
+  // --- Materie per ogni anno di frequenza ---
+  for (const year of allCreatedYears) {
+    const materie = MATERIE_BY_YEAR[year.label] ?? [];
+    for (const name of materie) {
+      const existing = await materiaRepo.findOne({
+        where: { name, courseYearId: year.id },
+      });
+      if (!existing) {
+        await materiaRepo.save(materiaRepo.create({ name, courseYearId: year.id }));
+        console.log(`  Materia creata: ${name} (${year.label})`);
+      }
     }
   }
 

@@ -12,7 +12,7 @@ import {
 import SidebarLayout from '../shared/sidebar-layout';
 
 type View = 'mine' | 'all';
-type SortField = 'date' | 'corso' | 'anno' | 'sessione' | 'docente';
+type SortField = 'date' | 'corso' | 'anno' | 'materia' | 'sessione' | 'docente';
 type SortDirection = 'asc' | 'desc';
 
 const sortValue = (appello: Appello, field: SortField): string => {
@@ -23,6 +23,8 @@ const sortValue = (appello: Appello, field: SortField): string => {
       return appello.courseYear.course?.name ?? '';
     case 'anno':
       return appello.courseYear.label;
+    case 'materia':
+      return appello.materia?.name ?? '';
     case 'sessione':
       return appello.examSession.name;
     case 'docente':
@@ -133,6 +135,13 @@ const TableAppelli = ({
               onToggle={toggleSort}
             />
             <SortableHeader
+              field="materia"
+              label="Materia"
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onToggle={toggleSort}
+            />
+            <SortableHeader
               field="sessione"
               label="Sessione"
               sortField={sortField}
@@ -161,6 +170,7 @@ const TableAppelli = ({
                   {appello.courseYear.label}
                 </span>
               </td>
+              <td className="px-6 py-4 text-gray-600">{appello.materia?.name ?? '-'}</td>
               <td className="px-6 py-4 text-gray-600">{appello.examSession.name}</td>
               {view === 'all' && (
                 <td className="px-6 py-4 text-gray-600">

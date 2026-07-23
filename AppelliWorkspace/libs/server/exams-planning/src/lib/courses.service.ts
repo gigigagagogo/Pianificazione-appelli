@@ -11,10 +11,12 @@ import { Course } from './entities/course.entity';
 import { CourseYear } from './entities/course-year.entity';
 import { Appelli } from './entities/appelli.entity';
 import { ExamSession } from './entities/exam-session.entity';
+import { Materia } from './entities/materia.entity';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { CreateCourseYearDto } from './dto/create-course-year.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { UpdateCourseYearDto } from './dto/update-course-year.dto';
+import { CreateMateriaDto } from './dto/create-materia.dto';
 
 @Injectable()
 export class CoursesService {
@@ -27,6 +29,8 @@ export class CoursesService {
     private readonly appelliRepo: Repository<Appelli>,
     @InjectRepository(ExamSession)
     private readonly examSessionsRepo: Repository<ExamSession>,
+    @InjectRepository(Materia)
+    private readonly materieRepo: Repository<Materia>,
     private readonly usersService: UsersService,
   ) {}
 
@@ -158,17 +162,41 @@ export class CoursesService {
     await this.courseYearsRepo.remove(year);
   }
 
+  // Materie di un anno di frequenza: usato per precaricare la select nel form appello.
+  // Essendo l'anno legato a (corso, anno, docente), queste sono già le materie di quel
+  // corso di laurea, per quell'anno, di quel docente.
+  findMaterieByCourseYear(courseYearId: number) {
+    return this.materieRepo.find({
+      where: { courseYearId },
+      order: { name: 'ASC' },
+    });
+  }
+
+  async createMateria(dto: CreateMateriaDto) {
+    const year = await this.courseYearsRepo.findOne({ where: { id: dto.courseYearId } });
+    if (!year) {
+      throw new NotFoundException(`Anno di frequenza con id ${dto.courseYearId} non trovato.`);
+    }
+    const materia = this.materieRepo.create(dto);
+    try {
+      return await this.materieRepo.save(materia);
+    } catch (error) {
+      throw this.mapUniqueViolation(error, 'materia');
+    }
+  }
+
   // Traduce la violazione del vincolo unique (Postgres 23505) in un 409 con messaggio
   // in italiano, invece di lasciarla esplodere come 500 "Errore imprevisto".
-  private mapUniqueViolation(error: unknown, entity: 'course' | 'year'): Error {
+  private mapUniqueViolation(error: unknown, entity: 'course' | 'year' | 'materia'): Error {
     const code = (error as { driverError?: { code?: string }; code?: string })?.driverError?.code
       ?? (error as { code?: string })?.code;
     if (error instanceof QueryFailedError && code === '23505') {
-      return new ConflictException(
-        entity === 'course'
-          ? 'Esiste già un corso di laurea con questo codice.'
-          : 'Esiste già un anno di frequenza con questa etichetta.',
-      );
+      const messages = {
+        course: 'Esiste già un corso di laurea con questo codice.',
+        year: 'Esiste già un anno di frequenza con questa etichetta.',
+        materia: 'Esiste già una materia con questo nome per questo anno di frequenza.',
+      };
+      return new ConflictException(messages[entity]);
     }
     return error as Error;
   }

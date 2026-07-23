@@ -8,8 +8,10 @@ import {
   createAppello,
   ExamSession,
   getCalendar,
+  getMaterieByCourseYear,
   getMyCourseYears,
   getSessions,
+  Materia,
   updateAppello,
 } from '../shared/api';
 import SidebarLayout from '../shared/sidebar-layout';
@@ -71,8 +73,10 @@ const AddAppelloPage = () => {
 
   const [courseYears, setCourseYears] = useState<CourseYear[]>([]);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
+  const [materie, setMaterie] = useState<Materia[]>([]);
   const [courseYearId, setCourseYearId] = useState<number | ''>(editAppello?.courseYearId ?? '');
   const [sessionId, setSessionId] = useState<number | ''>(editAppello?.examSession.id ?? '');
+  const [materiaId, setMateriaId] = useState<number | ''>(editAppello?.materiaId ?? '');
 
   const [days, setDays] = useState<CalendarDay[] | null>(null);
   const [viewMonthKey, setViewMonthKey] = useState<string | null>(null);
@@ -91,6 +95,20 @@ const AddAppelloPage = () => {
       )
       .finally(() => setLoadingCourseYears(false));
   }, []);
+
+  // Precarica le materie dell'anno di frequenza selezionato: sono già solo quelle
+  // di quel corso di laurea, per quell'anno, del docente titolare.
+  useEffect(() => {
+    if (courseYearId === '') {
+      setMaterie([]);
+      return;
+    }
+    getMaterieByCourseYear(courseYearId)
+      .then(setMaterie)
+      .catch((err) =>
+        setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.'),
+      );
+  }, [courseYearId]);
 
   const availableSessions = useMemo(
     () =>
@@ -157,6 +175,10 @@ const AddAppelloPage = () => {
 
   const handleDayClick = async (day: CalendarDay) => {
     if (sessionId === '' || courseYearId === '' || !day.available) return;
+    if (materiaId === '') {
+      setError('Seleziona una materia prima di scegliere la data.');
+      return;
+    }
     setError(null);
 
     try {
@@ -164,11 +186,12 @@ const AddAppelloPage = () => {
         await updateAppello(editAppello.id, {
           date: day.date,
           courseYearId,
+          materiaId,
           examSessionId: sessionId,
         });
         navigate('/appelli');
       } else {
-        await createAppello({ date: day.date, courseYearId, examSessionId: sessionId });
+        await createAppello({ date: day.date, courseYearId, materiaId, examSessionId: sessionId });
         loadCalendar(sessionId, courseYearId, false);
       }
     } catch (err) {
@@ -239,19 +262,36 @@ const AddAppelloPage = () => {
         )}
 
         {!loadingCourseYears && courseYears.length > 0 && (
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <select
               className={selectClass}
               value={courseYearId}
               onChange={(e) => {
                 setCourseYearId(e.target.value ? Number(e.target.value) : '');
                 setSessionId('');
+                setMateriaId('');
               }}
             >
               <option value="">Corso di laurea - anno di frequenza</option>
               {courseYears.map((year) => (
                 <option key={year.id} value={year.id}>
                   {year.course?.name} — {year.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className={selectClass}
+              value={materiaId}
+              disabled={!courseYearId}
+              onChange={(e) => setMateriaId(e.target.value ? Number(e.target.value) : '')}
+            >
+              <option value="">
+                {courseYearId && materie.length === 0 ? 'Nessuna materia disponibile' : 'Materia'}
+              </option>
+              {materie.map((materia) => (
+                <option key={materia.id} value={materia.id}>
+                  {materia.name}
                 </option>
               ))}
             </select>

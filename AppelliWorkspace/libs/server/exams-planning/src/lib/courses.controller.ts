@@ -21,6 +21,7 @@ import { CreateCourseDto } from './dto/create-course.dto';
 import { CreateCourseYearDto } from './dto/create-course-year.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { UpdateCourseYearDto } from './dto/update-course-year.dto';
+import { CreateMateriaDto } from './dto/create-materia.dto';
 
 @Controller('courses')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -80,5 +81,19 @@ export class CoursesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteYear(@Param('id', ParseIntPipe) id: number) {
     return this.coursesService.deleteYear(id);
+  }
+
+  // Materie di un anno di frequenza: serve al docente per precaricare la select
+  // nel form di inserimento/modifica appello.
+  @Get('years/:courseYearId/materie')
+  findMaterie(@Param('courseYearId', ParseIntPipe) courseYearId: number) {
+    return this.coursesService.findMaterieByCourseYear(courseYearId);
+  }
+
+  // La gestione (creazione) delle materie è riservata alla segreteria.
+  @Post('materie')
+  @Roles(UserRole.SEGRETERIA)
+  createMateria(@Body() dto: CreateMateriaDto) {
+    return this.coursesService.createMateria(dto);
   }
 }

@@ -6,6 +6,7 @@ import { CourseYear } from './entities/course-year.entity';
 import { ExamSession } from './entities/exam-session.entity';
 import { Appelli } from './entities/appelli.entity';
 import { Holiday } from './entities/holiday.entity';
+import { Materia } from './entities/materia.entity';
 import { CoursesController } from './courses.controller';
 import { CoursesService } from './courses.service';
 import { SessionsController } from './sessions.controller';
@@ -17,7 +18,7 @@ import { HolidaysService } from './holidays.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Course, CourseYear, ExamSession, Appelli, Holiday]),
+    TypeOrmModule.forFeature([Course, CourseYear, ExamSession, Appelli, Holiday, Materia]),
     UsersModule,
   ],
   controllers: [CoursesController, SessionsController, AppelliController, HolidaysController],

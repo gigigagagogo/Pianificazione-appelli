@@ -9,5 +9,8 @@ export class CreateAppelliDto {
   courseYearId!: number;
 
   @IsInt()
+  materiaId!: number;
+
+  @IsInt()
   examSessionId!: number;
 }

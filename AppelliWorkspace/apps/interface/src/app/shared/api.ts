@@ -107,6 +107,17 @@ export function getMyCourseYears() {
   return get<CourseYear[]>('/courses/years/mine');
 }
 
+export interface Materia {
+  id: number;
+  name: string;
+  courseYearId: number;
+}
+
+// Materie di un anno di frequenza (già filtrate per corso, anno e docente titolare).
+export function getMaterieByCourseYear(courseYearId: number) {
+  return get<Materia[]>(`/courses/years/${courseYearId}/materie`);
+}
+
 export interface ExamSession {
   id: number;
   name: string;
@@ -122,6 +133,8 @@ export interface Appello {
   date: string;
   courseYearId: number;
   courseYear: CourseYear;
+  materiaId: number;
+  materia?: Materia;
   examSession: ExamSession;
   createdAt: string;
   docente?: { id: string; name: string; surname: string };
@@ -138,6 +151,7 @@ export function getAllAppelli() {
 export interface CreateAppelloPayload {
   date: string;
   courseYearId: number;
+  materiaId: number;
   examSessionId: number;
 }
 
@@ -152,6 +166,7 @@ export function deleteAppello(id: number) {
 export interface UpdateAppelloPayload {
   date: string;
   courseYearId: number;
+  materiaId: number;
   examSessionId: number;
 }
 

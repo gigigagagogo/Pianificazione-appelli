@@ -11,6 +11,7 @@ import { isWeekend } from './common/date.util';
 import { Appelli } from './entities/appelli.entity';
 import { CourseYear } from './entities/course-year.entity';
 import { ExamSession } from './entities/exam-session.entity';
+import { Materia } from './entities/materia.entity';
 import { CreateAppelliDto } from './dto/create-appelli.dto';
 import { UpdateAppelliDto } from './dto/update-appelli.dto';
 import { HolidaysService } from './holidays.service';
@@ -24,11 +25,14 @@ export class AppelliService {
     private readonly examSessionRepository: Repository<ExamSession>,
     @InjectRepository(CourseYear)
     private readonly courseYearRepository: Repository<CourseYear>,
+    @InjectRepository(Materia)
+    private readonly materiaRepository: Repository<Materia>,
     private readonly holidaysService: HolidaysService,
   ) {}
 
   async create(dto: CreateAppelliDto, docenteId: string): Promise<Appelli> {
     await this.assertOwnCourseYear(dto.courseYearId, docenteId);
+    await this.assertMateriaBelongsToCourseYear(dto.materiaId, dto.courseYearId);
     await this.validateBooking(dto.examSessionId, dto.courseYearId, dto.date);
     await this.assertDateFree(dto.courseYearId, dto.date);
 
@@ -36,6 +40,7 @@ export class AppelliService {
       date: dto.date,
       docenteId,
       courseYearId: dto.courseYearId,
+      materiaId: dto.materiaId,
       examSession: { id: dto.examSessionId },
     });
 
@@ -50,12 +55,13 @@ export class AppelliService {
 
   findAll() {
     return this.appelliRepository.find({
-      relations: ['courseYear', 'courseYear.course', 'examSession', 'docente'],
+      relations: ['courseYear', 'courseYear.course', 'examSession', 'docente', 'materia'],
       select: {
         id: true,
         date: true,
         docenteId: true,
         courseYearId: true,
+        materiaId: true,
         createdAt: true,
         courseYear: {
           id: true,
@@ -63,6 +69,7 @@ export class AppelliService {
           label: true,
           course: { id: true, code: true, name: true },
         },
+        materia: { id: true, name: true },
         examSession: { id: true, name: true, sessionStartDate: true, sessionEndDate: true },
         docente: { id: true, name: true, surname: true },
       },
@@ -73,7 +80,7 @@ export class AppelliService {
   findMine(docenteId: string) {
     return this.appelliRepository.find({
       where: { docenteId },
-      relations: ['courseYear', 'courseYear.course', 'examSession'],
+      relations: ['courseYear', 'courseYear.course', 'examSession', 'materia'],
       order: { date: 'ASC' },
     });
   }
@@ -87,14 +94,17 @@ export class AppelliService {
 
     const examSessionId = dto.examSessionId ?? appello.examSession.id;
     const courseYearId = dto.courseYearId ?? appello.courseYearId;
+    const materiaId = dto.materiaId ?? appello.materiaId;
     const date = dto.date ?? appello.date;
 
     await this.assertOwnCourseYear(courseYearId, docenteId);
+    await this.assertMateriaBelongsToCourseYear(materiaId, courseYearId);
     await this.validateBooking(examSessionId, courseYearId, date);
     await this.assertDateFree(courseYearId, date, id);
 
     appello.date = date;
     appello.courseYearId = courseYearId;
+    appello.materiaId = materiaId;
     appello.examSession = { id: examSessionId } as ExamSession;
 
     try {
@@ -192,6 +202,21 @@ export class AppelliService {
     if (courseYear.docenteId !== docenteId) {
       throw new ForbiddenException(
         'Puoi inserire appelli solo per i corsi/anni di cui sei titolare',
+      );
+    }
+  }
+
+  private async assertMateriaBelongsToCourseYear(
+    materiaId: number,
+    courseYearId: number,
+  ): Promise<void> {
+    const materia = await this.materiaRepository.findOne({ where: { id: materiaId } });
+    if (!materia) {
+      throw new NotFoundException('Materia non trovata');
+    }
+    if (materia.courseYearId !== courseYearId) {
+      throw new BadRequestException(
+        'La materia selezionata non appartiene a questo corso di laurea/anno di frequenza',
       );
     }
   }
