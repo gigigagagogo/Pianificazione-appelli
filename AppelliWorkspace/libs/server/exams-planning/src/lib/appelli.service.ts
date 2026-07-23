@@ -9,7 +9,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import { isWeekend } from './common/date.util';
 import { Appelli } from './entities/appelli.entity';
-import { CourseYear } from './entities/course-year.entity';
 import { ExamSession } from './entities/exam-session.entity';
 import { Materia } from './entities/materia.entity';
 import { CreateAppelliDto } from './dto/create-appelli.dto';
@@ -23,16 +22,13 @@ export class AppelliService {
     private readonly appelliRepository: Repository<Appelli>,
     @InjectRepository(ExamSession)
     private readonly examSessionRepository: Repository<ExamSession>,
-    @InjectRepository(CourseYear)
-    private readonly courseYearRepository: Repository<CourseYear>,
     @InjectRepository(Materia)
     private readonly materiaRepository: Repository<Materia>,
     private readonly holidaysService: HolidaysService,
   ) {}
 
   async create(dto: CreateAppelliDto, docenteId: string): Promise<Appelli> {
-    await this.assertOwnCourseYear(dto.courseYearId, docenteId);
-    await this.assertMateriaBelongsToCourseYear(dto.materiaId, dto.courseYearId);
+    await this.assertOwnMateria(dto.materiaId, dto.courseYearId, docenteId);
     await this.validateBooking(dto.examSessionId, dto.courseYearId, dto.date);
     await this.assertDateFree(dto.courseYearId, dto.date);
 
@@ -97,8 +93,7 @@ export class AppelliService {
     const materiaId = dto.materiaId ?? appello.materiaId;
     const date = dto.date ?? appello.date;
 
-    await this.assertOwnCourseYear(courseYearId, docenteId);
-    await this.assertMateriaBelongsToCourseYear(materiaId, courseYearId);
+    await this.assertOwnMateria(materiaId, courseYearId, docenteId);
     await this.validateBooking(examSessionId, courseYearId, date);
     await this.assertDateFree(courseYearId, date, id);
 
@@ -194,21 +189,12 @@ export class AppelliService {
     return session;
   }
 
-  private async assertOwnCourseYear(courseYearId: number, docenteId: string): Promise<void> {
-    const courseYear = await this.courseYearRepository.findOne({ where: { id: courseYearId } });
-    if (!courseYear) {
-      throw new NotFoundException('Corso di laurea/anno di frequenza non trovato');
-    }
-    if (courseYear.docenteId !== docenteId) {
-      throw new ForbiddenException(
-        'Puoi inserire appelli solo per i corsi/anni di cui sei titolare',
-      );
-    }
-  }
-
-  private async assertMateriaBelongsToCourseYear(
+  // La titolarità è a livello di materia: il docente può inserire appelli solo per le
+  // materie di cui è titolare, e la materia deve appartenere al corso/anno indicato.
+  private async assertOwnMateria(
     materiaId: number,
     courseYearId: number,
+    docenteId: string,
   ): Promise<void> {
     const materia = await this.materiaRepository.findOne({ where: { id: materiaId } });
     if (!materia) {
@@ -217,6 +203,11 @@ export class AppelliService {
     if (materia.courseYearId !== courseYearId) {
       throw new BadRequestException(
         'La materia selezionata non appartiene a questo corso di laurea/anno di frequenza',
+      );
+    }
+    if (materia.docenteId !== docenteId) {
+      throw new ForbiddenException(
+        'Puoi inserire appelli solo per le materie di cui sei titolare',
       );
     }
   }

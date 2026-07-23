@@ -22,6 +22,7 @@ import { CreateCourseYearDto } from './dto/create-course-year.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { UpdateCourseYearDto } from './dto/update-course-year.dto';
 import { CreateMateriaDto } from './dto/create-materia.dto';
+import { UpdateMateriaDto } from './dto/update-materia.dto';
 
 @Controller('courses')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -83,17 +84,43 @@ export class CoursesController {
     return this.coursesService.deleteYear(id);
   }
 
-  // Materie di un anno di frequenza: serve al docente per precaricare la select
-  // nel form di inserimento/modifica appello.
-  @Get('years/:courseYearId/materie')
-  findMaterie(@Param('courseYearId', ParseIntPipe) courseYearId: number) {
-    return this.coursesService.findMaterieByCourseYear(courseYearId);
+  // --- Materie ---
+
+  // Elenco completo (con corso/anno/docente): usato dalla segreteria per la gestione.
+  @Get('materie')
+  findAllMaterie() {
+    return this.coursesService.findAllMaterie();
   }
 
-  // La gestione (creazione) delle materie è riservata alla segreteria.
+  // Materie del docente per un anno: precarica la select nel form appello con solo
+  // le materie di quel prof per quel corso/anno.
+  @Get('years/:courseYearId/materie/mine')
+  @Roles(UserRole.DOCENTE)
+  findMyMaterie(
+    @Param('courseYearId', ParseIntPipe) courseYearId: number,
+    @Req() req: Request,
+  ) {
+    const docente = req.user as JwtPayload;
+    return this.coursesService.findMyMaterieByCourseYear(courseYearId, docente.sub);
+  }
+
+  // La gestione delle materie (crea/modifica/elimina) è riservata alla segreteria.
   @Post('materie')
   @Roles(UserRole.SEGRETERIA)
   createMateria(@Body() dto: CreateMateriaDto) {
     return this.coursesService.createMateria(dto);
+  }
+
+  @Patch('materie/:id')
+  @Roles(UserRole.SEGRETERIA)
+  updateMateria(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateMateriaDto) {
+    return this.coursesService.updateMateria(id, dto);
+  }
+
+  @Delete('materie/:id')
+  @Roles(UserRole.SEGRETERIA)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteMateria(@Param('id', ParseIntPipe) id: number) {
+    return this.coursesService.deleteMateria(id);
   }
 }

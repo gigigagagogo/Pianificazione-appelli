@@ -6,10 +6,11 @@ import {
   PrimaryGeneratedColumn,
   Unique,
 } from 'typeorm';
+import { User } from '@server/users';
 import { CourseYear } from './course-year.entity';
 
 @Entity('materie')
-@Unique(['courseYear', 'name']) // niente due materie con lo stesso nome nello stesso anno di frequenza
+@Unique(['courseYear', 'name']) // una materia è unica nell'anno: due docenti non possono averla entrambi
 export class Materia {
   @PrimaryGeneratedColumn()
   id!: number;
@@ -23,4 +24,11 @@ export class Materia {
   @ManyToOne(() => CourseYear, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'course_year_id' })
   courseYear!: CourseYear;
+
+  @Column({ name: 'docente_id', nullable: true })
+  docenteId?: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'docente_id' })
+  docente?: User | null;
 }

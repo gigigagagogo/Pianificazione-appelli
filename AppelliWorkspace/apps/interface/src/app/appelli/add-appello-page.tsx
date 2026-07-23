@@ -8,7 +8,7 @@ import {
   createAppello,
   ExamSession,
   getCalendar,
-  getMaterieByCourseYear,
+  getMyMaterieByCourseYear,
   getMyCourseYears,
   getSessions,
   Materia,
@@ -103,7 +103,7 @@ const AddAppelloPage = () => {
       setMaterie([]);
       return;
     }
-    getMaterieByCourseYear(courseYearId)
+    getMyMaterieByCourseYear(courseYearId)
       .then(setMaterie)
       .catch((err) =>
         setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.'),

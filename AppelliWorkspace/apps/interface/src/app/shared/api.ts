@@ -111,11 +111,38 @@ export interface Materia {
   id: number;
   name: string;
   courseYearId: number;
+  courseYear?: CourseYear;
+  docenteId?: string | null;
+  docente?: Docente;
 }
 
-// Materie di un anno di frequenza (già filtrate per corso, anno e docente titolare).
-export function getMaterieByCourseYear(courseYearId: number) {
-  return get<Materia[]>(`/courses/years/${courseYearId}/materie`);
+// Materie del docente loggato per un anno: già filtrate per corso, anno e prof.
+// Usato per precaricare la select nel form appello.
+export function getMyMaterieByCourseYear(courseYearId: number) {
+  return get<Materia[]>(`/courses/years/${courseYearId}/materie/mine`);
+}
+
+// Tutte le materie con corso/anno/docente: usato dalla segreteria.
+export function getMaterie() {
+  return get<Materia[]>('/courses/materie');
+}
+
+export interface CreateMateriaPayload {
+  name: string;
+  courseYearId: number;
+  docenteId?: string | null;
+}
+
+export function createMateria(payload: CreateMateriaPayload) {
+  return post<Materia>('/courses/materie', payload);
+}
+
+export function updateMateria(id: number, payload: Partial<CreateMateriaPayload>) {
+  return patch<Materia>(`/courses/materie/${id}`, payload);
+}
+
+export function deleteMateria(id: number) {
+  return del<void>(`/courses/materie/${id}`);
 }
 
 export interface ExamSession {

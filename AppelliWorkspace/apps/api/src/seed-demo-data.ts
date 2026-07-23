@@ -73,15 +73,41 @@ const COURSES: CourseSeed[] = [
   },
 ];
 
-// Materie per anno di frequenza (chiave = label del CourseYear). Ogni anno è già legato
-// a corso + docente, quindi queste sono le materie di quel prof per quel corso/anno.
-const MATERIE_BY_YEAR: Record<string, string[]> = {
-  'INFTL-I': ['Analisi Matematica 1', 'Programmazione 1', 'Fondamenti di Informatica'],
-  'INFTL-II': ['Basi di Dati', 'Reti di Calcolatori', 'Sistemi Operativi'],
-  'INFLM-I': ['Machine Learning', 'Ingegneria del Software Avanzata'],
-  'MATTL-I': ['Algebra Lineare', 'Analisi Matematica 1'],
-  'ECOTL-I': ['Economia Politica', 'Ragioneria Generale'],
-  'FISTL-I': ['Fisica Generale 1', 'Meccanica Razionale'],
+// Materie per anno di frequenza (chiave = label del CourseYear). Ogni materia è legata
+// a un docente: nello stesso anno possono convivere più docenti (es. INFTL-I ne ha 3),
+// ma la materia è unica nell'anno, quindi due docenti non hanno la stessa materia.
+interface MateriaSeed {
+  name: string;
+  docenteEmail?: string;
+}
+
+const MATERIE_BY_YEAR: Record<string, MateriaSeed[]> = {
+  'INFTL-I': [
+    { name: 'Analisi Matematica 1', docenteEmail: 'mario.rossi@unibs.it' },
+    { name: 'Programmazione 1', docenteEmail: 'laura.bianchi@unibs.it' },
+    { name: 'Fondamenti di Informatica', docenteEmail: 'luca.marino@unibs.it' },
+  ],
+  'INFTL-II': [
+    { name: 'Basi di Dati', docenteEmail: 'laura.bianchi@unibs.it' },
+    { name: 'Reti di Calcolatori', docenteEmail: 'giuseppe.verdi@unibs.it' },
+    { name: 'Sistemi Operativi', docenteEmail: 'mario.rossi@unibs.it' },
+  ],
+  'INFLM-I': [
+    { name: 'Machine Learning', docenteEmail: 'giuseppe.verdi@unibs.it' },
+    { name: 'Ingegneria del Software Avanzata', docenteEmail: 'anna.ferrari@unibs.it' },
+  ],
+  'MATTL-I': [
+    { name: 'Algebra Lineare', docenteEmail: 'anna.ferrari@unibs.it' },
+    { name: 'Analisi Matematica 1', docenteEmail: 'chiara.ricci@unibs.it' },
+  ],
+  'ECOTL-I': [
+    { name: 'Economia Politica', docenteEmail: 'marco.colombo@unibs.it' },
+    { name: 'Ragioneria Generale', docenteEmail: 'chiara.ricci@unibs.it' },
+  ],
+  'FISTL-I': [
+    { name: 'Fisica Generale 1', docenteEmail: 'chiara.ricci@unibs.it' },
+    { name: 'Meccanica Razionale', docenteEmail: 'marco.colombo@unibs.it' },
+  ],
 };
 
 function addDays(date: Date, days: number): Date {
@@ -177,13 +203,22 @@ async function seedDemoData() {
   // --- Materie per ogni anno di frequenza ---
   for (const year of allCreatedYears) {
     const materie = MATERIE_BY_YEAR[year.label] ?? [];
-    for (const name of materie) {
+    for (const m of materie) {
+      const docenteId = m.docenteEmail ? userByEmail.get(m.docenteEmail)?.id : undefined;
       const existing = await materiaRepo.findOne({
-        where: { name, courseYearId: year.id },
+        where: { name: m.name, courseYearId: year.id },
       });
       if (!existing) {
-        await materiaRepo.save(materiaRepo.create({ name, courseYearId: year.id }));
-        console.log(`  Materia creata: ${name} (${year.label})`);
+        await materiaRepo.save(
+          materiaRepo.create({ name: m.name, courseYearId: year.id, docenteId }),
+        );
+        console.log(`  Materia creata: ${m.name} (${year.label})${docenteId ? ' → docente' : ''}`);
+      } else if (docenteId && existing.docenteId !== docenteId) {
+        existing.docenteId = docenteId;
+        await materiaRepo.save(existing);
+        console.log(`  Materia già presente, docente assegnato ora: ${m.name} (${year.label})`);
+      } else {
+        console.log(`  Materia già presente: ${m.name} (${year.label})`);
       }
     }
   }

@@ -17,6 +17,7 @@ import { CreateCourseYearDto } from './dto/create-course-year.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { UpdateCourseYearDto } from './dto/update-course-year.dto';
 import { CreateMateriaDto } from './dto/create-materia.dto';
+import { UpdateMateriaDto } from './dto/update-materia.dto';
 
 @Injectable()
 export class CoursesService {
@@ -80,12 +81,24 @@ export class CoursesService {
     });
   }
 
+  // Anni di frequenza in cui il docente ha almeno una materia: sono i corsi/anni
+  // per cui può inserire appelli (la titolarità ora è a livello di materia).
   findMineYears(docenteId: string) {
-    return this.courseYearsRepo.find({
-      where: { docenteId },
-      relations: ['course'],
-      order: { yearNumber: 'ASC' },
-    });
+    return this.courseYearsRepo
+      .createQueryBuilder('year')
+      .innerJoinAndSelect('year.course', 'course')
+      .where((qb) => {
+        const sub = qb
+          .subQuery()
+          .select('materia.course_year_id')
+          .from(Materia, 'materia')
+          .where('materia.docente_id = :docenteId')
+          .getQuery();
+        return 'year.id IN ' + sub;
+      })
+      .setParameter('docenteId', docenteId)
+      .orderBy('year.yearNumber', 'ASC')
+      .getMany();
   }
 
   async updateCourse(id: number, dto: UpdateCourseDto) {
@@ -162,26 +175,84 @@ export class CoursesService {
     await this.courseYearsRepo.remove(year);
   }
 
-  // Materie di un anno di frequenza: usato per precaricare la select nel form appello.
-  // Essendo l'anno legato a (corso, anno, docente), queste sono già le materie di quel
-  // corso di laurea, per quell'anno, di quel docente.
-  findMaterieByCourseYear(courseYearId: number) {
+  // Tutte le materie con corso/anno/docente: usato dalla segreteria per la gestione.
+  findAllMaterie() {
     return this.materieRepo.find({
-      where: { courseYearId },
+      relations: ['courseYear', 'courseYear.course', 'docente'],
+      select: {
+        id: true,
+        name: true,
+        courseYearId: true,
+        docenteId: true,
+        courseYear: {
+          id: true,
+          label: true,
+          yearNumber: true,
+          course: { id: true, code: true, name: true },
+        },
+        docente: { id: true, name: true, surname: true, email: true },
+      },
+      order: { name: 'ASC' },
+    });
+  }
+
+  // Materie di un anno di frequenza appartenenti a un docente: precarica la select
+  // nel form appello con solo le materie di quel prof per quel corso/anno.
+  findMyMaterieByCourseYear(courseYearId: number, docenteId: string) {
+    return this.materieRepo.find({
+      where: { courseYearId, docenteId },
       order: { name: 'ASC' },
     });
   }
 
   async createMateria(dto: CreateMateriaDto) {
-    const year = await this.courseYearsRepo.findOne({ where: { id: dto.courseYearId } });
-    if (!year) {
-      throw new NotFoundException(`Anno di frequenza con id ${dto.courseYearId} non trovato.`);
-    }
+    await this.assertCourseYearExists(dto.courseYearId);
+    await this.assertValidDocente(dto.docenteId ?? undefined);
     const materia = this.materieRepo.create(dto);
     try {
       return await this.materieRepo.save(materia);
     } catch (error) {
       throw this.mapUniqueViolation(error, 'materia');
+    }
+  }
+
+  async updateMateria(id: number, dto: UpdateMateriaDto) {
+    const materia = await this.materieRepo.findOne({ where: { id } });
+    if (!materia) {
+      throw new NotFoundException(`Materia con id ${id} non trovata.`);
+    }
+    if (dto.courseYearId !== undefined) {
+      await this.assertCourseYearExists(dto.courseYearId);
+    }
+    if (dto.docenteId !== undefined && dto.docenteId !== null) {
+      await this.assertValidDocente(dto.docenteId);
+    }
+    Object.assign(materia, dto);
+    try {
+      return await this.materieRepo.save(materia);
+    } catch (error) {
+      throw this.mapUniqueViolation(error, 'materia');
+    }
+  }
+
+  async deleteMateria(id: number): Promise<void> {
+    const materia = await this.materieRepo.findOne({ where: { id } });
+    if (!materia) {
+      throw new NotFoundException(`Materia con id ${id} non trovata.`);
+    }
+    const appelliCount = await this.appelliRepo.count({ where: { materiaId: id } });
+    if (appelliCount > 0) {
+      throw new BadRequestException(
+        'Impossibile eliminare la materia: sono già stati inseriti degli appelli per questa materia.',
+      );
+    }
+    await this.materieRepo.remove(materia);
+  }
+
+  private async assertCourseYearExists(courseYearId: number): Promise<void> {
+    const year = await this.courseYearsRepo.findOne({ where: { id: courseYearId } });
+    if (!year) {
+      throw new NotFoundException(`Anno di frequenza con id ${courseYearId} non trovato.`);
     }
   }
 

@@ -10,25 +10,30 @@ import {
   Docente,
   ExamSession,
   Holiday,
+  Materia,
   createCourse,
   createCourseYear,
   createHoliday,
+  createMateria,
   createSession,
   deleteCourse,
   deleteCourseYear,
   deleteHoliday,
+  deleteMateria,
   getCourses,
   getCourseYears,
   getDocenti,
   getHolidays,
+  getMaterie,
   getSessions,
   updateCourse,
   updateCourseYear,
   updateHoliday,
+  updateMateria,
   updateSession,
 } from '../shared/api';
 
-type Section = 'courses' | 'years' | 'sessions' | 'holidays';
+type Section = 'courses' | 'years' | 'materie' | 'sessions' | 'holidays';
 
 // Converte il timestamp UTC del server nei componenti dell'ora locale,
 // nel formato accettato dagli input datetime-local.
@@ -65,6 +70,7 @@ const SegreteriaPage = () => {
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseYears, setCourseYears] = useState<CourseYear[]>([]);
+  const [materie, setMaterie] = useState<Materia[]>([]);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
   const [docenti, setDocenti] = useState<Docente[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -74,16 +80,19 @@ const SegreteriaPage = () => {
 
 const [courseFormError, setCourseFormError] = useState<string | null>(null);
 const [yearFormError, setYearFormError] = useState<string | null>(null);
+const [materiaFormError, setMateriaFormError] = useState<string | null>(null);
 const [sessionFormError, setSessionFormError] = useState<string | null>(null);
 const [holidayFormError, setHolidayFormError] = useState<string | null>(null);
 
   const [courseModalOpen, setCourseModalOpen] = useState(false);
   const [yearModalOpen, setYearModalOpen] = useState(false);
+  const [materiaModalOpen, setMateriaModalOpen] = useState(false);
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
   const [holidayModalOpen, setHolidayModalOpen] = useState(false);
 
   const [editingCourseId, setEditingCourseId] = useState<number | null>(null);
   const [editingYearId, setEditingYearId] = useState<number | null>(null);
+  const [editingMateriaId, setEditingMateriaId] = useState<number | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
   const [editingHolidayId, setEditingHolidayId] = useState<number | null>(null);
 
@@ -94,6 +103,11 @@ const [holidayFormError, setHolidayFormError] = useState<string | null>(null);
   const [yearNumber, setYearNumber] = useState(1);
   const [yearLabel, setYearLabel] = useState('');
   const [yearDocenteId, setYearDocenteId] = useState('');
+
+  const [materiaCourseId, setMateriaCourseId] = useState('');
+  const [materiaCourseYearId, setMateriaCourseYearId] = useState('');
+  const [materiaDocenteId, setMateriaDocenteId] = useState('');
+  const [materiaName, setMateriaName] = useState('');
 
   const [holidayDate, setHolidayDate] = useState('');
   const [holidayDescription, setHolidayDescription] = useState('');
@@ -117,15 +131,17 @@ const [holidayFormError, setHolidayFormError] = useState<string | null>(null);
 
   const reloadAll = async () => {
     try {
-      const [c, y, s, d, h] = await Promise.all([
+      const [c, y, m, s, d, h] = await Promise.all([
         getCourses(),
         getCourseYears(),
+        getMaterie(),
         getSessions(),
         getDocenti(),
         getHolidays(),
       ]);
       setCourses(c);
       setCourseYears(y);
+      setMaterie(m);
       setSessions(s);
       setDocenti(d);
       setHolidays(h);
@@ -285,6 +301,79 @@ const [holidayFormError, setHolidayFormError] = useState<string | null>(null);
     }
   };
 
+  // --- Materie ---
+  // Anni selezionabili nel form materia: filtrati per il corso di laurea scelto.
+  const materiaYearOptions = courseYears.filter(
+    (y) => y.courseId === Number(materiaCourseId),
+  );
+
+  const resetMateriaForm = () => {
+    setEditingMateriaId(null);
+    setMateriaCourseId('');
+    setMateriaCourseYearId('');
+    setMateriaDocenteId('');
+    setMateriaName('');
+    setMateriaFormError(null);
+  };
+
+  const openNewMateria = () => {
+    resetMateriaForm();
+    setMateriaModalOpen(true);
+  };
+
+  const openEditMateria = (m: Materia) => {
+    const year = courseYears.find((y) => y.id === m.courseYearId);
+    setEditingMateriaId(m.id);
+    setMateriaCourseId(year ? String(year.courseId) : '');
+    setMateriaCourseYearId(String(m.courseYearId));
+    setMateriaDocenteId(m.docenteId ?? '');
+    setMateriaName(m.name);
+    setMateriaFormError(null);
+    setMateriaModalOpen(true);
+  };
+
+  const handleSubmitMateria = async (e: FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+    setMateriaFormError(null);
+    if (!materiaCourseYearId) {
+      setMateriaFormError('Seleziona un corso di laurea e un anno di frequenza.');
+      return;
+    }
+    const payload = {
+      name: materiaName,
+      courseYearId: Number(materiaCourseYearId),
+      docenteId: materiaDocenteId || null,
+    };
+    try {
+      if (editingMateriaId !== null) {
+        await updateMateria(editingMateriaId, payload);
+        setMessage('Materia modificata.');
+      } else {
+        await createMateria(payload);
+        setMessage('Materia creata.');
+      }
+      resetMateriaForm();
+      setMateriaModalOpen(false);
+      await reloadAll();
+    } catch (err) {
+      setMateriaFormError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
+    }
+  };
+
+  const handleDeleteMateria = async (m: Materia) => {
+    if (!window.confirm(`Vuoi eliminare la materia "${m.name}"?`)) return;
+    setMessage(null);
+    setError(null);
+    try {
+      await deleteMateria(m.id);
+      setMessage('Materia eliminata.');
+      await reloadAll();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Errore di rete, riprova.');
+    }
+  };
+
   // --- Festività ---
   const resetHolidayForm = () => {
     setEditingHolidayId(null);
@@ -412,6 +501,7 @@ const [holidayFormError, setHolidayFormError] = useState<string | null>(null);
   const navItems = [
     { key: 'courses', label: 'Corsi di laurea', active: section === 'courses', onClick: () => setSection('courses') },
     { key: 'years', label: 'Anni di frequenza', active: section === 'years', onClick: () => setSection('years') },
+    { key: 'materie', label: 'Materie', active: section === 'materie', onClick: () => setSection('materie') },
     { key: 'sessions', label: "Sessioni d'esame", active: section === 'sessions', onClick: () => setSection('sessions') },
     { key: 'holidays', label: 'Festività', active: section === 'holidays', onClick: () => setSection('holidays') },
   ];
@@ -575,6 +665,78 @@ const [holidayFormError, setHolidayFormError] = useState<string | null>(null);
                       <tr>
                         <td colSpan={5} className="py-6 text-center text-gray-400">
                           Nessun anno ancora creato.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {section === 'materie' && (
+              <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">Materie</h2>
+                  <button
+                    type="button"
+                    onClick={openNewMateria}
+                    className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                  >
+                    Nuova materia
+                  </button>
+                </div>
+                <p className="mb-4 text-sm text-gray-500">
+                  Ogni materia è legata a un corso di laurea, a un anno e a un docente. Una materia
+                  è unica nell'anno: due docenti non possono insegnare la stessa materia.
+                </p>
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 text-xs uppercase text-gray-500">
+                      <th className="py-2">Materia</th>
+                      <th className="py-2">Corso di laurea</th>
+                      <th className="py-2">Anno</th>
+                      <th className="py-2">Docente</th>
+                      <th className="py-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {materie.map((m) => {
+                      const year = courseYears.find((y) => y.id === m.courseYearId);
+                      const course = courses.find((c) => c.id === year?.courseId);
+                      const docente = docenti.find((d) => d.id === m.docenteId);
+                      return (
+                        <tr key={m.id}>
+                          <td className="py-2 font-medium text-gray-900">{m.name}</td>
+                          <td className="py-2 text-gray-700">{course?.name ?? '—'}</td>
+                          <td className="py-2 text-gray-500">{year?.label ?? '—'}</td>
+                          <td className="py-2 text-gray-700">
+                            {docente ? `${docente.name} ${docente.surname}` : 'Non assegnato'}
+                          </td>
+                          <td className="py-2 text-right">
+                            <div className="flex justify-end gap-4">
+                              <button
+                                type="button"
+                                onClick={() => openEditMateria(m)}
+                                className="text-sm font-medium text-indigo-600 hover:underline"
+                              >
+                                Modifica
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMateria(m)}
+                                className="text-sm font-medium text-red-600 hover:underline"
+                              >
+                                Elimina
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {materie.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-6 text-center text-gray-400">
+                          Nessuna materia ancora creata.
                         </td>
                       </tr>
                     )}
@@ -826,6 +988,90 @@ const [holidayFormError, setHolidayFormError] = useState<string | null>(null);
             className="mt-2 self-start rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
           >
             {editingYearId !== null ? 'Salva modifiche' : 'Crea'}
+          </button>
+        </form>
+      </Modal>
+
+      <Modal
+        open={materiaModalOpen}
+        title={editingMateriaId !== null ? 'Modifica materia' : 'Nuova materia'}
+        onClose={() => {
+          resetMateriaForm();
+          setMateriaModalOpen(false);
+        }}
+      >
+        {materiaFormError && (
+          <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+            {materiaFormError}
+          </p>
+        )}
+        <form onSubmit={handleSubmitMateria} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>Corso di laurea</label>
+            <select
+              className={inputClass}
+              value={materiaCourseId}
+              onChange={(e) => {
+                setMateriaCourseId(e.target.value);
+                setMateriaCourseYearId('');
+              }}
+              required
+            >
+              <option value="">-- seleziona --</option>
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>Anno di frequenza</label>
+            <select
+              className={inputClass}
+              value={materiaCourseYearId}
+              onChange={(e) => setMateriaCourseYearId(e.target.value)}
+              disabled={!materiaCourseId}
+              required
+            >
+              <option value="">-- seleziona --</option>
+              {materiaYearOptions.map((y) => (
+                <option key={y.id} value={y.id}>
+                  {y.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>Docente</label>
+            <select
+              className={inputClass}
+              value={materiaDocenteId}
+              onChange={(e) => setMateriaDocenteId(e.target.value)}
+            >
+              <option value="">-- non assegnato --</option>
+              {docenti.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name} {d.surname}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>Nome materia</label>
+            <input
+              className={inputClass}
+              value={materiaName}
+              onChange={(e) => setMateriaName(e.target.value)}
+              placeholder="es. Analisi Matematica 1"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="mt-2 self-start rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            {editingMateriaId !== null ? 'Salva modifiche' : 'Crea'}
           </button>
         </form>
       </Modal>
